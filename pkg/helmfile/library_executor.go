@@ -1,4 +1,4 @@
-// Copyright (c) Antoine Martin
+// Copyright Antoine Martin 2026
 // SPDX-License-Identifier: MIT
 
 // cSpell: words helmexec cliv3 cliv4
