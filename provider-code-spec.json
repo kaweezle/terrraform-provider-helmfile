@@ -1,0 +1,475 @@
+{
+  "$schema": "https://raw.githubusercontent.com/hashicorp/terraform-plugin-codegen-spec/refs/heads/main/spec/v0.1/schema.json",
+  "version": "0.1",
+  "provider": {
+    "name": "helmfile",
+    "description": "A Terraform provider for managing Helmfile releases.",
+    "schema": {
+      "attributes": [
+        {
+          "name": "perform_init",
+          "bool": {
+            "description": "Whether to run 'helmfile init' before applying any helmfile operations.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "helm_binary_path",
+          "string": {
+            "description": "Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "kustomize_binary_path",
+          "string": {
+            "description": "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "default_args",
+          "list": {
+            "element_type": {
+              "string": {}
+            },
+            "optional_required": "optional",
+            "description": "List of default arguments to pass to every helmfile command."
+          }
+        },
+        {
+          "name": "strip_args_values_on_exit_error",
+          "bool": {
+            "description": "Strip the potential secret values of the helm command args contained in a helmfile error message (default true)",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "disable_force_update",
+          "bool": {
+            "description": "do not force helm repos to update when executing \"helm repo add\"",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "enforce_plugin_verification",
+          "bool": {
+            "description": "enforce helm plugin verification when installing missing plugins",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "helm_oci_plain_http",
+          "bool": {
+            "description": "allow using plain HTTP when pulling charts from OCI registries",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "skip_deps",
+          "bool": {
+            "description": "skip running \"helm repo update\" and \"helm dependency build\"",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "skip_refresh",
+          "bool": {
+            "description": "skip running 'helmfile repos' before applying any helmfile operations.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "additional_plugins",
+          "list": {
+            "element_type": {
+              "string": {}
+            },
+            "optional_required": "optional",
+            "description": "List of additional helm plugins to install."
+          }
+        }
+      ]
+    }
+  },
+  "resources": [
+    {
+      "name": "helmfile_release",
+      "description": "Manage one or more Helm releases via Helmfile.",
+      "schema": {
+        "attributes": [
+          {
+            "name": "name",
+            "string": {
+              "description": "The name of the Helm release.",
+              "computed_optional_required": "required"
+            }
+          },
+          {
+            "name": "file_or_path",
+            "string": {
+              "description": "The path to the helmfile.yaml file or directory containing helmfile.yaml files.",
+              "computed_optional_required": "required"
+            }
+          },
+          {
+            "name": "environment",
+            "string": {
+              "description": "Specify the environment name. Defaults to 'default'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "namespace",
+            "string": {
+              "description": "Set namespace. Uses the namespace set in the context by default.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "kube_context",
+            "string": {
+              "description": "Set kubectl context. Uses current context by default.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "kubeconfig",
+            "string": {
+              "description": "Use a particular kubeconfig file.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "selector",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Only run using the releases that match labels. Labels can take the form of foo=bar or foo!=bar."
+            }
+          },
+          {
+            "name": "args",
+            "string": {
+              "description": "Pass args to helm exec.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "cascade",
+            "string": {
+              "description": "Pass cascade to helm exec, default: background.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "concurrency",
+            "int64": {
+              "description": "Maximum number of concurrent helm processes to run, 0 is unlimited.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "context",
+            "int64": {
+              "description": "Output NUM lines of context around changes.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "detailed_exitcode",
+            "bool": {
+              "description": "Return a non-zero exit code 2 instead of 0 when there were changes detected AND the changes are synced successfully.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "diff_args",
+            "string": {
+              "description": "Pass args to helm helm-diff.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "hide_notes",
+            "bool": {
+              "description": "Add --hide-notes flag to helm.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "include_needs",
+            "bool": {
+              "description": "Automatically include releases from the target release's 'needs' when --selector/-l flag is provided.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "include_transitive_needs",
+            "bool": {
+              "description": "Like --include-needs, but also includes transitive needs (needs of needs).",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "include_tests",
+            "bool": {
+              "description": "Enable the diffing of the helm test hooks.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "no_hooks",
+            "bool": {
+              "description": "Do not diff changes made by hooks.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "output",
+            "string": {
+              "description": "Output format for diff plugin.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "post_renderer",
+            "string": {
+              "description": "Pass --post-renderer to 'helm template' or 'helm upgrade --install'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "post_renderer_args",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Pass --post-renderer-args to 'helm template' or 'helm upgrade --install'."
+            }
+          },
+          {
+            "name": "reset_values",
+            "bool": {
+              "description": "Override helmDefaults.reuseValues 'helm upgrade --install --reset-values'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "reuse_values",
+            "bool": {
+              "description": "Override helmDefaults.reuseValues 'helm upgrade --install --reuse-values'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "set",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Additional values to be merged into the helm command --set flag."
+            }
+          },
+          {
+            "name": "show_secrets",
+            "bool": {
+              "description": "Do not redact secret values in the diff output. Should be used for debug purpose only.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "skip_cleanup",
+            "bool": {
+              "description": "Stop cleaning up temporary values generated by helmfile and helm-secrets. Useful for debugging.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "skip_crds",
+            "bool": {
+              "description": "If set, no CRDs will be installed on sync. By default, CRDs are installed if not already present.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "skip_diff_on_install",
+            "bool": {
+              "description": "Skips running helm-diff on releases being newly installed on this apply.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "skip_needs",
+            "bool": {
+              "description": "Do not automatically include releases from the target release's 'needs' when --selector/-l flag is provided.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "skip_schema_validation",
+            "bool": {
+              "description": "Pass --skip-schema-validation to 'helm template' or 'helm upgrade --install'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "strip_trailing_cr",
+            "bool": {
+              "description": "Strip trailing carriage return on input.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "suppress",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Suppress specified Kubernetes objects in the diff output. Can be provided multiple times."
+            }
+          },
+          {
+            "name": "suppress_diff",
+            "bool": {
+              "description": "Suppress diff in the output. Usable in new installs.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "suppress_output_line_regex",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "A list of regex patterns to suppress output lines from the diff output."
+            }
+          },
+          {
+            "name": "suppress_secrets",
+            "bool": {
+              "description": "Suppress secrets in the diff output. Highly recommended to specify on CI/CD use-cases.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "sync_args",
+            "string": {
+              "description": "Pass args to helm upgrade.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "sync_release_labels",
+            "bool": {
+              "description": "Sync release labels to the target release.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "take_ownership",
+            "bool": {
+              "description": "Add --take-ownership flag to helm.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "validate",
+            "bool": {
+              "description": "Validate your manifests against the Kubernetes cluster you are currently pointing at.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "values",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Additional value files to be merged into the helm command --values flag."
+            }
+          },
+          {
+            "name": "wait",
+            "bool": {
+              "description": "Override helmDefaults.wait setting 'helm upgrade --install --wait'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "wait_for_jobs",
+            "bool": {
+              "description": "Override helmDefaults.waitForJobs setting 'helm upgrade --install --wait-for-jobs'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "allow_no_matching_release",
+            "bool": {
+              "description": "Do not exit with an error code if the provided selector has no matching releases.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "chart",
+            "string": {
+              "description": "Set chart. Uses the chart set in release by default.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "debug",
+            "bool": {
+              "description": "Enable verbose output for Helm and set log-level to debug.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "log_level",
+            "string": {
+              "description": "Set log level, default info.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "state_values_file",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Specify state values in a YAML file. Used to override .Values within the helmfile template."
+            }
+          },
+          {
+            "name": "state_values_set",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Set state values on the command line. Used to override .Values within the helmfile template."
+            }
+          },
+          {
+            "name": "state_values_set_string",
+            "list": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Set state STRING values on the command line. Used to override .Values within the helmfile template."
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

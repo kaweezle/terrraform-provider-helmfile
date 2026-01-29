@@ -1,0 +1,66 @@
+---
+page_title: "{{.ProviderShortName}} Provider"
+subcategory: ""
+description: |-
+  The Helmfile provider manages Helm releases using Helmfile.
+---
+
+# {{.ProviderShortName}} Provider
+
+The Helmfile provider enables you to manage Helm releases declaratively using [Helmfile](https://helmfile.readthedocs.io/). It wraps the Helmfile library to execute helmfile operations within Terraform's lifecycle.
+
+## Example Usage
+
+{{tffile "examples/provider/provider.tf"}}
+
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Configuration Options
+
+### Binary Paths
+
+- `helm_binary_path` - Specify a custom path to the Helm binary. If not set, the provider searches for `helm` in the system PATH.
+- `kustomize_binary_path` - Specify a custom path to the Kustomize binary. If not set, the provider searches for `kustomize` in the system PATH.
+
+### Initialization
+
+- `perform_init` - When set to `true`, the provider runs `helmfile init` before applying any operations. This ensures that all required Helm plugins and dependencies are installed.
+- `skip_refresh` - When set to `true`, skips running `helmfile repos` before applying operations. This can speed up operations if repositories are already up to date.
+
+### Repository Management
+
+- `disable_force_update` - When set to `true`, prevents forced updates of Helm repositories when executing `helm repo add`.
+- `skip_deps` - When set to `true`, skips running `helm repo update` and `helm dependency build`.
+
+### Plugin Management
+
+- `additional_plugins` - List of additional Helm plugins to install. Each entry should be a URL or plugin identifier.
+- `enforce_plugin_verification` - When set to `true`, enforces verification of Helm plugins when installing missing ones.
+
+### Security
+
+- `strip_args_values_on_exit_error` - When set to `true` (default), strips potential secret values from Helm command arguments in error messages.
+- `helm_oci_plain_http` - When set to `true`, allows using plain HTTP when pulling charts from OCI registries. **Use with caution in production.**
+
+### Global Arguments
+
+- `default_args` - List of arguments to pass to every Helmfile command. These are applied globally across all operations.
+
+## Authentication
+
+The provider uses the Kubernetes configuration from your environment. It respects:
+
+- `KUBECONFIG` environment variable
+- `~/.kube/config` file (default)
+- In-cluster configuration (when running in a Kubernetes pod)
+
+Individual resources can override the kubeconfig, context, and namespace settings.
+
+## Plugin Requirements
+
+The provider requires the following Helm plugins to be installed:
+
+- [helm-diff](https://github.com/databus23/helm-diff) - For generating diffs between releases
+
+These can be automatically installed by setting `perform_init = true` or by listing them in `additional_plugins`.

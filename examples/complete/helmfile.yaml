@@ -1,0 +1,83 @@
+releases:
+  # Ingress Controller
+  - name: ingress-nginx
+    namespace: ingress-system
+    chart: ingress-nginx/ingress-nginx
+    version: 4.8.0
+    labels:
+      component: ingress
+    values:
+      - ./values/{{ .Environment.Name }}/ingress.yaml
+
+  # PostgreSQL Database
+  - name: postgresql
+    namespace: database
+    chart: bitnami/postgresql
+    version: 13.1.5
+    labels:
+      component: database
+    values:
+      - ./values/{{ .Environment.Name }}/database.yaml
+
+  # Backend API
+  - name: backend-api
+    namespace: application
+    chart: ./charts/backend
+    labels:
+      component: backend
+    needs:
+      - database/postgresql
+    values:
+      - ./values/{{ .Environment.Name }}/backend.yaml
+
+  # Frontend Web
+  - name: frontend-web
+    namespace: application
+    chart: ./charts/frontend
+    labels:
+      component: frontend
+    needs:
+      - application/backend-api
+      - ingress-system/ingress-nginx
+    values:
+      - ./values/{{ .Environment.Name }}/frontend.yaml
+
+  # Monitoring Stack
+  - name: kube-prometheus-stack
+    namespace: monitoring
+    chart: prometheus-community/kube-prometheus-stack
+    version: 54.0.0
+    labels:
+      component: monitoring
+    condition: monitoring.enabled
+    values:
+      - ./values/{{ .Environment.Name }}/monitoring.yaml
+
+repositories:
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+environments:
+  development:
+    values:
+      - monitoring:
+          enabled: false
+  staging:
+    values:
+      - monitoring:
+          enabled: true
+  production:
+    values:
+      - monitoring:
+          enabled: true
+
+helmDefaults:
+  wait: true
+  timeout: 600
+  recreatePods: false
+  force: false
+  createNamespace: true

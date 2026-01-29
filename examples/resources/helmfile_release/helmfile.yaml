@@ -1,0 +1,6 @@
+name: nginx
+namespace: default
+chart: stable/nginx-ingress
+version: 1.41.3
+values:
+  - ./values.yaml

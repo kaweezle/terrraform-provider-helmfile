@@ -1,0 +1,152 @@
+---
+page_title: "{{.Type}}_{{.Name}} {{.ProviderShortName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}_{{.Name}}
+
+{{ .Description | trimspace }}
+
+The `helmfile_release` resource manages Helm releases through Helmfile. It provides a declarative way to define and manage complex Helm deployments with all the power of Helmfile's features.
+
+## Example Usage
+
+### Basic Usage
+
+{{tffile "examples/resources/helmfile_release/resource.tf"}}
+
+### Using with Multiple Environments
+
+```terraform
+resource "helmfile_release" "app_dev" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+  environment  = "development"
+  namespace    = "dev"
+}
+
+resource "helmfile_release" "app_prod" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+  environment  = "production"
+  namespace    = "prod"
+
+  wait          = true
+  wait_for_jobs = true
+}
+```
+
+### Using Selectors
+
+```terraform
+resource "helmfile_release" "backend_services" {
+  name         = "backend"
+  file_or_path = "./helmfile.yaml"
+
+  selector = [
+    "tier=backend",
+    "app=api"
+  ]
+
+  include_needs = true
+}
+```
+
+### Using State Values for Templating
+
+```terraform
+resource "helmfile_release" "templated" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  state_values_set = [
+    "cluster=us-east-1",
+    "env=production",
+    "replicas=3"
+  ]
+
+  state_values_file = ["./cluster-config.yaml"]
+}
+```
+
+### With Custom Kubeconfig
+
+```terraform
+resource "helmfile_release" "remote_cluster" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  kubeconfig   = "/path/to/remote-cluster.kubeconfig"
+  kube_context = "remote-cluster-context"
+  namespace    = "applications"
+}
+```
+
+
+{{ if .SchemaMarkdown -}}
+{{ .SchemaMarkdown | trimspace }}
+{{- end }}
+
+## Import
+
+Helmfile releases can be imported using the release name:
+
+```shell
+terraform import helmfile_release.example my-release-name
+```
+
+Note: Importing a helmfile release will attempt to reconcile the state with the existing release. Ensure that the `file_or_path` and other configuration match the existing deployment.
+
+## Behavior
+
+### Create
+
+When creating a new `helmfile_release`, the provider:
+
+1. Validates the helmfile configuration
+2. Runs `helmfile diff` to preview changes (unless `skip_diff_on_install` is true)
+3. Executes `helmfile apply` to install/upgrade releases
+4. Waits for resources to be ready if `wait` is true
+
+### Update
+
+When updating an existing `helmfile_release`, the provider:
+
+1. Detects changes in the resource configuration
+2. Runs `helmfile diff` to show what will change
+3. Executes `helmfile apply` to apply changes
+4. Returns exit code 2 if `detailed_exitcode` is true and changes were made
+
+### Delete
+
+When deleting a `helmfile_release`, the provider:
+
+1. Runs `helmfile destroy` to remove all releases
+2. Cleans up any temporary files (unless `skip_cleanup` is true)
+
+## Notes
+
+### Performance
+
+- Use `concurrency` to control parallelism when applying multiple releases
+- Set `skip_deps` to `true` to skip dependency updates if repositories are stable
+- Enable `suppress_diff` for large deployments where diff output is not needed
+
+### Security
+
+- Always set `suppress_secrets = true` in CI/CD environments
+- Use `show_secrets` only for debugging in secure environments
+- The provider respects `strip_args_values_on_exit_error` from the provider configuration
+
+### Selectors and Dependencies
+
+- Use `selector` to target specific releases within a helmfile
+- Enable `include_needs` to automatically include dependent releases
+- Use `include_transitive_needs` for deep dependency resolution
+- Set `skip_needs` to avoid automatic dependency inclusion
+
+### State Values
+
+State values (`state_values_set`, `state_values_file`, `state_values_set_string`) are used for templating within the helmfile itself, allowing you to parameterize your helmfile configuration based on Terraform variables.

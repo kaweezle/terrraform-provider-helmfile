@@ -1,0 +1,21 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": ["dist", "go.*", ".gitignore"],
+  "dictionaryDefinitions": [],
+  "dictionaries": ["bash", "docker", "golang", "terraform", "softwareTerms"],
+  "words": [
+    "crds",
+    "eksctl",
+    "Exitcode",
+    "golangci",
+    "goreleaser",
+    "gotmpl",
+    "kaweezle",
+    "Kubeconfig",
+    "mumoshu",
+    "tfsdk"
+  ],
+  "ignoreWords": [],
+  "import": []
+}
