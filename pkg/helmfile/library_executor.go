@@ -35,14 +35,20 @@ type HelmfileLibraryExecutor struct {
 }
 
 // NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel
-func NewHelmfileLibraryExecutor(options *config.GlobalOptions, additionalPlugins []HelmPlugin) *HelmfileLibraryExecutor {
+func NewHelmfileLibraryExecutor(
+	options *config.GlobalOptions,
+	additionalPlugins []HelmPlugin,
+) *HelmfileLibraryExecutor {
 	return &HelmfileLibraryExecutor{
 		globalOptions:     options,
 		additionalPlugins: additionalPlugins,
 	}
 }
 
-func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(options app.ConfigProvider, logger *zap.SugaredLogger) (*config.GlobalImpl, error) {
+func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
+	options app.ConfigProvider,
+	logger *zap.SugaredLogger,
+) (*config.GlobalImpl, error) {
 	globalOptions := *p.globalOptions
 	if options != nil {
 		if options.Args() != "" {
@@ -55,10 +61,14 @@ func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(options 
 			globalOptions.KustomizeBinary = options.KustomizeBinary()
 		}
 
-		globalOptions.StripArgsValuesOnExitError = globalOptions.StripArgsValuesOnExitError || options.StripArgsValuesOnExitError()
-		globalOptions.DisableForceUpdate = globalOptions.DisableForceUpdate || options.DisableForceUpdate()
-		globalOptions.EnforcePluginVerification = globalOptions.EnforcePluginVerification || options.EnforcePluginVerification()
-		globalOptions.HelmOCIPlainHTTP = globalOptions.HelmOCIPlainHTTP || options.HelmOCIPlainHTTP()
+		globalOptions.StripArgsValuesOnExitError = globalOptions.StripArgsValuesOnExitError ||
+			options.StripArgsValuesOnExitError()
+		globalOptions.DisableForceUpdate = globalOptions.DisableForceUpdate ||
+			options.DisableForceUpdate()
+		globalOptions.EnforcePluginVerification = globalOptions.EnforcePluginVerification ||
+			options.EnforcePluginVerification()
+		globalOptions.HelmOCIPlainHTTP = globalOptions.HelmOCIPlainHTTP ||
+			options.HelmOCIPlainHTTP()
 		globalOptions.SkipDeps = globalOptions.SkipDeps || options.SkipDeps()
 		globalOptions.SkipRefresh = globalOptions.SkipRefresh || options.SkipRefresh()
 
@@ -102,14 +112,24 @@ func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(options 
 	return result, nil
 }
 
-func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(ctx context.Context, logger *zap.SugaredLogger) error {
+func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
+	ctx context.Context,
+	logger *zap.SugaredLogger,
+) error {
 	logger.Debug("Installing additional plugins...")
 	runner := &helmexec.ShellRunner{
 		Logger:                     logger,
 		Ctx:                        ctx,
 		StripArgsValuesOnExitError: p.globalOptions.StripArgsValuesOnExitError,
 	}
-	helm, err := helmexec.New(p.globalOptions.HelmBinary, helmexec.HelmExecOptions{}, logger, "", "", runner)
+	helm, err := helmexec.New(
+		p.globalOptions.HelmBinary,
+		helmexec.HelmExecOptions{},
+		logger,
+		"",
+		"",
+		runner,
+	)
 	if err != nil {
 		return err
 	}
@@ -123,22 +143,45 @@ func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(ctx context.Context, 
 	}
 
 	for _, p := range p.additionalPlugins {
-		logger.Debugf("Checking installation of plugin %s/%s/%s in directory %s", p.Name, p.Repo, p.Version, pluginsDir)
+		logger.Debugf(
+			"Checking installation of plugin %s/%s/%s in directory %s",
+			p.Name,
+			p.Repo,
+			p.Version,
+			pluginsDir,
+		)
 		pluginVersion, err := helmexec.GetPluginVersion(p.Name, pluginsDir)
 		if err != nil {
 			if !strings.Contains(err.Error(), "not installed") {
 				return err
 			}
 
-			logger.Debugf("Plugin %s/%s/%s is not installed, installing...", p.Name, p.Repo, p.Version)
+			logger.Debugf(
+				"Plugin %s/%s/%s is not installed, installing...",
+				p.Name,
+				p.Repo,
+				p.Version,
+			)
 			err = helm.AddPlugin(p.Name, p.Repo, p.Version)
 			if err != nil {
 				return err
 			}
 			pluginVersion, err = helmexec.GetPluginVersion(p.Name, pluginsDir)
 			if err != nil {
-				logger.Errorf("Error while getting version of just installed plugin: %s/%s/%s: %w", p.Name, p.Repo, p.Version, err)
-				return fmt.Errorf("error while getting version of just installed plugin: %s/%s/%s: %w", p.Name, p.Repo, p.Version, err)
+				logger.Errorf(
+					"Error while getting version of just installed plugin: %s/%s/%s: %w",
+					p.Name,
+					p.Repo,
+					p.Version,
+					err,
+				)
+				return fmt.Errorf(
+					"error while getting version of just installed plugin: %s/%s/%s: %w",
+					p.Name,
+					p.Repo,
+					p.Version,
+					err,
+				)
 			}
 		}
 		requiredVersion, _ := semver.NewVersion(p.Version)
@@ -152,7 +195,10 @@ func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(ctx context.Context, 
 	return nil
 }
 
-func (p *HelmfileLibraryExecutor) Init(ctx context.Context, options app.ConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Init(
+	ctx context.Context,
+	options app.ConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	logger := CreateCaptureLogger(capture)
 
@@ -176,7 +222,11 @@ func (p *HelmfileLibraryExecutor) Init(ctx context.Context, options app.ConfigPr
 	return capture.String(), err
 }
 
-func (p *HelmfileLibraryExecutor) Apply(ctx context.Context, options app.ConfigProvider, applyOptions app.ApplyConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Apply(
+	ctx context.Context,
+	options app.ConfigProvider,
+	applyOptions app.ApplyConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	_ = CreateCaptureLogger(capture)
 
@@ -188,7 +238,11 @@ func (p *HelmfileLibraryExecutor) Apply(ctx context.Context, options app.ConfigP
 	return capture.String(), err
 }
 
-func (p *HelmfileLibraryExecutor) Diff(ctx context.Context, options app.ConfigProvider, diffOptions app.DiffConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Diff(
+	ctx context.Context,
+	options app.ConfigProvider,
+	diffOptions app.DiffConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	_ = CreateCaptureLogger(capture)
 
@@ -200,7 +254,11 @@ func (p *HelmfileLibraryExecutor) Diff(ctx context.Context, options app.ConfigPr
 	return capture.String(), err
 }
 
-func (p *HelmfileLibraryExecutor) Template(ctx context.Context, options app.ConfigProvider, templateOptions app.TemplateConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Template(
+	ctx context.Context,
+	options app.ConfigProvider,
+	templateOptions app.TemplateConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	_ = CreateCaptureLogger(capture)
 
@@ -212,7 +270,11 @@ func (p *HelmfileLibraryExecutor) Template(ctx context.Context, options app.Conf
 	return capture.String(), err
 }
 
-func (p *HelmfileLibraryExecutor) Destroy(ctx context.Context, options app.ConfigProvider, destroyOptions app.DestroyConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Destroy(
+	ctx context.Context,
+	options app.ConfigProvider,
+	destroyOptions app.DestroyConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	_ = CreateCaptureLogger(capture)
 
@@ -225,7 +287,10 @@ func (p *HelmfileLibraryExecutor) Destroy(ctx context.Context, options app.Confi
 	return capture.String(), err
 }
 
-func (p *HelmfileLibraryExecutor) Build(ctx context.Context, options app.ConfigProvider) (string, error) {
+func (p *HelmfileLibraryExecutor) Build(
+	ctx context.Context,
+	options app.ConfigProvider,
+) (string, error) {
 	capture := NewOutputCapture()
 	logger := CreateCaptureLogger(capture)
 

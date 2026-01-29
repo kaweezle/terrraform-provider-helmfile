@@ -21,16 +21,28 @@ func NewHelmfileReleaseResource() resource.Resource {
 	return &HelmfileReleaseResource{}
 }
 
-func (r *HelmfileReleaseResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *HelmfileReleaseResource) Metadata(
+	_ context.Context,
+	req resource.MetadataRequest,
+	resp *resource.MetadataResponse,
+) {
 	resp.TypeName = req.ProviderTypeName + "_release"
 }
 
-func (r *HelmfileReleaseResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *HelmfileReleaseResource) Schema(
+	ctx context.Context,
+	req resource.SchemaRequest,
+	resp *resource.SchemaResponse,
+) {
 	resp.Schema = HelmfileReleaseResourceSchema(ctx)
 	resp.Schema.Description = "Manages a Helm release defined in a Helmfile."
 }
 
-func (r *HelmfileReleaseResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *HelmfileReleaseResource) Configure(
+	ctx context.Context,
+	req resource.ConfigureRequest,
+	resp *resource.ConfigureResponse,
+) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -38,7 +50,10 @@ func (r *HelmfileReleaseResource) Configure(ctx context.Context, req resource.Co
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *provider_helmfile.HelmfileProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf(
+				"Expected *provider_helmfile.HelmfileProvider, got: %T. Please report this issue to the provider developers.",
+				req.ProviderData,
+			),
 		)
 
 		return
@@ -46,7 +61,11 @@ func (r *HelmfileReleaseResource) Configure(ctx context.Context, req resource.Co
 	r.provider = provider
 }
 
-func (r *HelmfileReleaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *HelmfileReleaseResource) Create(
+	ctx context.Context,
+	req resource.CreateRequest,
+	resp *resource.CreateResponse,
+) {
 	var data HelmfileReleaseModel
 	diags := req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -63,7 +82,11 @@ func (r *HelmfileReleaseResource) Create(ctx context.Context, req resource.Creat
 	}
 }
 
-func (r *HelmfileReleaseResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *HelmfileReleaseResource) Read(
+	ctx context.Context,
+	req resource.ReadRequest,
+	resp *resource.ReadResponse,
+) {
 	var data HelmfileReleaseModel
 	diags := req.State.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -80,7 +103,11 @@ func (r *HelmfileReleaseResource) Read(ctx context.Context, req resource.ReadReq
 	}
 }
 
-func (r *HelmfileReleaseResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *HelmfileReleaseResource) Update(
+	ctx context.Context,
+	req resource.UpdateRequest,
+	resp *resource.UpdateResponse,
+) {
 	var data HelmfileReleaseModel
 	diags := req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -97,7 +124,11 @@ func (r *HelmfileReleaseResource) Update(ctx context.Context, req resource.Updat
 	}
 }
 
-func (r *HelmfileReleaseResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *HelmfileReleaseResource) Delete(
+	ctx context.Context,
+	req resource.DeleteRequest,
+	resp *resource.DeleteResponse,
+) {
 	// Implementation of Delete operation
 	var data HelmfileReleaseModel
 	diags := req.State.Get(ctx, &data)

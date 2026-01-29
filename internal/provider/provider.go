@@ -30,14 +30,22 @@ type helmfileProvider struct {
 	version string
 }
 
-func (p *helmfileProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *helmfileProvider) Schema(
+	ctx context.Context,
+	req provider.SchemaRequest,
+	resp *provider.SchemaResponse,
+) {
 	tflog.Debug(ctx, "[HELMFILE] in Schema request")
 	resp.Schema = provider_helmfile.HelmfileProviderSchema(ctx)
 	// FIXME: It should be generated from the schema definition
 	resp.Schema.Description = "Helmfile provider configures the Helmfile CLI tool for managing Helm charts deployments."
 }
 
-func (p *helmfileProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+func (p *helmfileProvider) Configure(
+	ctx context.Context,
+	req provider.ConfigureRequest,
+	resp *provider.ConfigureResponse,
+) {
 	tflog.Debug(ctx, "In provider configuration")
 	var config provider_helmfile.HelmfileModel
 	diags := req.Config.Get(ctx, &config)
@@ -68,7 +76,11 @@ func (p *helmfileProvider) Configure(ctx context.Context, req provider.Configure
 	resp.ResourceData = providerInstance
 }
 
-func (p *helmfileProvider) Metadata(_ context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+func (p *helmfileProvider) Metadata(
+	_ context.Context,
+	req provider.MetadataRequest,
+	resp *provider.MetadataResponse,
+) {
 	resp.TypeName = "helmfile"
 	resp.Version = p.version
 }
