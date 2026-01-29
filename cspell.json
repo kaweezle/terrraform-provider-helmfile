@@ -1,23 +1,16 @@
 {
   "version": "0.2",
   "language": "en",
-  "ignorePaths": [
-    "dist",
-    "go.*",
-    ".gitignore"
-  ],
+  "ignorePaths": ["dist", "go.*", ".gitignore", "*_gen.go"],
   "dictionaryDefinitions": [],
-  "dictionaries": [
-    "bash",
-    "docker",
-    "golang",
-    "terraform",
-    "softwareTerms"
-  ],
+  "dictionaries": ["bash", "docker", "golang", "terraform", "softwareTerms"],
   "words": [
     "crds",
+    "Debugf",
     "eksctl",
     "Exitcode",
+    "gocritic",
+    "gocyclo",
     "golangci",
     "goreleaser",
     "gotmpl",
@@ -25,8 +18,15 @@
     "kaweezle",
     "Kubeconfig",
     "kustomizations",
+    "kustomized",
     "mumoshu",
+    "nolint",
+    "pipx",
+    "plainmarkdown",
+    "prefixlines",
+    "tffile",
     "tflog",
+    "tfplugindocs",
     "tfsdk"
   ],
   "ignoreWords": [],

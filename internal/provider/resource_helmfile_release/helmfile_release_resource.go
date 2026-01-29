@@ -31,7 +31,7 @@ func (r *HelmfileReleaseResource) Metadata(
 
 func (r *HelmfileReleaseResource) Schema(
 	ctx context.Context,
-	req resource.SchemaRequest,
+	_ resource.SchemaRequest,
 	resp *resource.SchemaResponse,
 ) {
 	resp.Schema = HelmfileReleaseResourceSchema(ctx)
@@ -39,7 +39,7 @@ func (r *HelmfileReleaseResource) Schema(
 }
 
 func (r *HelmfileReleaseResource) Configure(
-	ctx context.Context,
+	_ context.Context,
 	req resource.ConfigureRequest,
 	resp *resource.ConfigureResponse,
 ) {
@@ -61,6 +61,7 @@ func (r *HelmfileReleaseResource) Configure(
 	r.provider = provider
 }
 
+//nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Create(
 	ctx context.Context,
 	req resource.CreateRequest,
@@ -82,6 +83,7 @@ func (r *HelmfileReleaseResource) Create(
 	}
 }
 
+//nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Read(
 	ctx context.Context,
 	req resource.ReadRequest,
@@ -103,6 +105,7 @@ func (r *HelmfileReleaseResource) Read(
 	}
 }
 
+//nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Update(
 	ctx context.Context,
 	req resource.UpdateRequest,
@@ -124,6 +127,7 @@ func (r *HelmfileReleaseResource) Update(
 	}
 }
 
+//nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Delete(
 	ctx context.Context,
 	req resource.DeleteRequest,

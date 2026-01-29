@@ -30,10 +30,6 @@ repos:
         #   )$
       - id: check-merge-conflict
       - id: detect-private-key
-        exclude: |
-          (?x)^(
-              hack/iknitedev/cmd/install_signing_key_test\.go
-          )$
       - id: check-added-large-files
         args: ["--maxkb=10240"] # 10 MB
 
@@ -85,16 +81,6 @@ repos:
       - id: golangci-lint-config-verify
       - id: golangci-lint
       - id: golangci-lint-fmt
-
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.11.0.1
-    hooks:
-      - id: shellcheck
-        args: ["--exclude=SC3014,SC3043"] # Ignore source-related warnings
-        exclude: |
-          (?x)^(
-              packaging/rootfs/base/p10k.zsh
-          )$
 
 # Global exclusions for all hooks
 exclude: |

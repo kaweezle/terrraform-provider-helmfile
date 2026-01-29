@@ -1,3 +1,4 @@
+# cSpell: words bitnami
 releases:
   # Ingress Controller
   - name: ingress-nginx

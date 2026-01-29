@@ -9,7 +9,7 @@ import (
 	"github.com/helmfile/helmfile/pkg/app"
 )
 
-// HelmfileExecutor defines the interface for executing helmfile commands
+// HelmfileExecutor defines the interface for executing helmfile commands.
 type HelmfileExecutor interface {
 	// Init runs helmfile init to install dependencies
 	Init(ctx context.Context, options app.ConfigProvider) (string, error)

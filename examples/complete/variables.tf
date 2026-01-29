@@ -120,7 +120,7 @@ variable "grafana_admin_password" {
   description = "Grafana admin password"
   type        = string
   sensitive   = true
-  default     = "changeme"
+  default     = "change-me"
 }
 
 variable "monitoring_storage_class" {

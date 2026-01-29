@@ -14,16 +14,19 @@ import (
 	"github.com/kaweezle/terraform-provider-helmfile/pkg/helmfile"
 )
 
-// HelmfileProvider is the Helmfile provider implementation
+// HelmfileProvider is the Helmfile provider implementation.
 type HelmfileProvider struct {
 	Executor *helmfile.HelmfileLibraryExecutor
 }
 
-// NewGlobalOptionsFromModel creates GlobalOptions from HelmfileModel
-func NewGlobalOptionsFromModel(model HelmfileModel) (*config.GlobalOptions, diag.Diagnostics) {
+// NewGlobalOptionsFromModel creates GlobalOptions from HelmfileModel.
+func NewGlobalOptionsFromModel(
+	ctx context.Context,
+	model *HelmfileModel,
+) (*config.GlobalOptions, diag.Diagnostics) {
 	stringArgs := make([]string, 0)
-	if diag := model.DefaultArgs.ElementsAs(context.Background(), &stringArgs, false); diag.HasError() {
-		return nil, diag
+	if diags := model.DefaultArgs.ElementsAs(ctx, &stringArgs, false); diags.HasError() {
+		return nil, diags
 	}
 
 	globalOptions := &config.GlobalOptions{
@@ -45,10 +48,13 @@ func NewGlobalOptionsFromModel(model HelmfileModel) (*config.GlobalOptions, diag
 	return globalOptions, diag.Diagnostics{}
 }
 
-func NewPluginsFromModel(model HelmfileModel) ([]helmfile.HelmPlugin, diag.Diagnostics) {
+func NewPluginsFromModel(
+	ctx context.Context,
+	model *HelmfileModel,
+) ([]helmfile.HelmPlugin, diag.Diagnostics) {
 	modelPlugins := make([]AdditionalPluginsValue, 0)
-	if diag := model.AdditionalPlugins.ElementsAs(context.Background(), &modelPlugins, false); diag.HasError() {
-		return nil, diag
+	if diags := model.AdditionalPlugins.ElementsAs(ctx, &modelPlugins, false); diags.HasError() {
+		return nil, diags
 	}
 	result := make([]helmfile.HelmPlugin, 0, len(modelPlugins))
 	for _, p := range modelPlugins {
@@ -61,15 +67,18 @@ func NewPluginsFromModel(model HelmfileModel) ([]helmfile.HelmPlugin, diag.Diagn
 	return result, diag.Diagnostics{}
 }
 
-// NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel
-func NewHelmfileProvider(model HelmfileModel) (*HelmfileProvider, diag.Diagnostics) {
+// NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel.
+func NewHelmfileProvider(
+	ctx context.Context,
+	model *HelmfileModel,
+) (*HelmfileProvider, diag.Diagnostics) {
 	diags := diag.Diagnostics{}
-	options, err := NewGlobalOptionsFromModel(model)
+	options, err := NewGlobalOptionsFromModel(ctx, model)
 	diags.Append(err...)
 	if err.HasError() {
 		return nil, diags
 	}
-	additionalPlugins, err := NewPluginsFromModel(model)
+	additionalPlugins, err := NewPluginsFromModel(ctx, model)
 	diags.Append(err...)
 	if err.HasError() {
 		return nil, diags

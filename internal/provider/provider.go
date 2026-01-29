@@ -32,7 +32,7 @@ type helmfileProvider struct {
 
 func (p *helmfileProvider) Schema(
 	ctx context.Context,
-	req provider.SchemaRequest,
+	_ provider.SchemaRequest,
 	resp *provider.SchemaResponse,
 ) {
 	tflog.Debug(ctx, "[HELMFILE] in Schema request")
@@ -59,7 +59,7 @@ func (p *helmfileProvider) Configure(
 	}
 	performInit := config.PerformInit.ValueBool()
 	var providerInstance *provider_helmfile.HelmfileProvider
-	providerInstance, diags = provider_helmfile.NewHelmfileProvider(config)
+	providerInstance, diags = provider_helmfile.NewHelmfileProvider(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
@@ -78,7 +78,7 @@ func (p *helmfileProvider) Configure(
 
 func (p *helmfileProvider) Metadata(
 	_ context.Context,
-	req provider.MetadataRequest,
+	_ provider.MetadataRequest,
 	resp *provider.MetadataResponse,
 ) {
 	resp.TypeName = "helmfile"

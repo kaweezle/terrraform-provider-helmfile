@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- cSpell: words myapp -->
+
 # Terraform Provider Helmfile
 
 A Terraform provider for managing Helmfile releases. This provider allows you to

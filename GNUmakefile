@@ -1,4 +1,4 @@
-# cSpell: words testacc tfplugingen
+# cSpell: words testacc tfplugingen gofmt
 default: fmt lint install generate
 
 build:
