@@ -50,8 +50,16 @@ provider "helmfile" {
   default_args = ["--debug"]
 
   additional_plugins = [
-    "https://github.com/databus23/helm-diff",
-    "https://github.com/jkroepke/helm-secrets"
+    {
+      name    = "diff"
+      version = "3.9.4"
+      repo    = "https://github.com/databus23/helm-diff"
+    },
+    {
+      name    = "secrets"
+      version = "4.6.0"
+      repo    = "https://github.com/jkroepke/helm-secrets"
+    }
   ]
 }
 ```
@@ -68,7 +76,11 @@ provider "helmfile" {
   skip_refresh                    = false  # Always refresh repos
 
   additional_plugins = [
-    "https://github.com/databus23/helm-diff"
+    {
+      name    = "diff"
+      version = "3.9.4"
+      repo    = "https://github.com/databus23/helm-diff"
+    }
   ]
 }
 ```

@@ -66,7 +66,8 @@ provider "helmfile" {
 
 ### Optional
 
-- `additional_plugins` (List of String) List of additional helm plugins to install.
+- `additional_plugins` (Attributes List) List of additional helm plugins to install. (see [below for nested schema](#nestedatt--additional_plugins))
+- `debug` (Boolean) enable debug logging for helmfile operations
 - `default_args` (List of String) List of default arguments to pass to every helmfile command.
 - `disable_force_update` (Boolean) do not force helm repos to update when executing "helm repo add"
 - `enforce_plugin_verification` (Boolean) enforce helm plugin verification when installing missing plugins
@@ -77,6 +78,15 @@ provider "helmfile" {
 - `skip_deps` (Boolean) skip running "helm repo update" and "helm dependency build"
 - `skip_refresh` (Boolean) skip running 'helmfile repos' before applying any helmfile operations.
 - `strip_args_values_on_exit_error` (Boolean) Strip the potential secret values of the helm command args contained in a helmfile error message (default true)
+
+<a id="nestedatt--additional_plugins"></a>
+### Nested Schema for `additional_plugins`
+
+Required:
+
+- `name` (String) Name of the helm plugin.
+- `repo` (String) The URL of the plugin repository.
+- `version` (String) Version of the plugin
 
 ## Configuration Options
 

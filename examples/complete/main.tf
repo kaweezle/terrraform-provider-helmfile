@@ -11,9 +11,13 @@ terraform {
 provider "helmfile" {
   perform_init = true
 
+  // helm-x allows using kustomizations in helmfiles
   additional_plugins = [
-    "https://github.com/databus23/helm-diff",
-    "https://github.com/jkroepke/helm-secrets"
+    {
+      name    = "x"
+      version = "0.8.0"
+      repo    = "https://github.com/mumoshu/helm-x"
+    },
   ]
 
   strip_args_values_on_exit_error = true

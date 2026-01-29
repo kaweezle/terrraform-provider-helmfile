@@ -8,8 +8,17 @@ terraform {
 
 provider "helmfile" {
   helm_binary_path = "/usr/bin/helm"
+  perform_init     = true
+  additional_plugins = [
+    {
+      name    = "x"
+      version = "0.8.0"
+      repo    = "https://github.com/mumoshu/helm-x"
+    }
+  ]
 }
 
-data "helmfile_coffee" "example" {
-  helmfile_path = "${path.module}/example-helmfile.yaml"
+resource "helmfile_release" "example" {
+  name         = "prometheus"
+  file_or_path = "${path.module}/helmfile.yaml"
 }

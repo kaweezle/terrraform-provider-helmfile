@@ -1,166 +1,81 @@
 // Copyright (c) Antoine Martin
 // SPDX-License-Identifier: MIT
 
+// cSpell: words helmexec cliv3 cliv4
+
 package provider_helmfile
 
 import (
 	"context"
+	"strings"
 
-	"github.com/helmfile/helmfile/pkg/app"
-	"github.com/helmfile/helmfile/pkg/app/version"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/helmfile/helmfile/pkg/config"
 	"github.com/kaweezle/terraform-provider-helmfile/pkg/helmfile"
 )
 
-var _ helmfile.HelmfileExecutor = (*HelmfileProvider)(nil)
-
-type HelmfileProvider struct{}
-
-func NewHelmfileProvider(helmBinaryPath string, performInit bool) (*HelmfileProvider, error) {
-	return &HelmfileProvider{}, nil
+// HelmfileProvider is the Helmfile provider implementation
+type HelmfileProvider struct {
+	Executor *helmfile.HelmfileLibraryExecutor
 }
 
-func (p *HelmfileProvider) Apply(ctx context.Context, options app.ConfigProvider, applyOptions app.ApplyConfigProvider) (*helmfile.Result, error) {
-	capture := helmfile.NewOutputCapture()
-	_ = helmfile.CreateCaptureLogger(capture)
-
-	helmfileApp := app.New(options)
-
-	// Run apply operation
-	err := helmfileApp.Apply(applyOptions)
-
-	// Get captured output and prepend debug info
-	output := capture.String()
-
-	if err != nil {
-		return &helmfile.Result{
-			Output:   output,
-			ExitCode: 1,
-			Error:    err,
-		}, err
+// NewGlobalOptionsFromModel creates GlobalOptions from HelmfileModel
+func NewGlobalOptionsFromModel(model HelmfileModel) (*config.GlobalOptions, diag.Diagnostics) {
+	stringArgs := make([]string, 0)
+	if diag := model.DefaultArgs.ElementsAs(context.Background(), &stringArgs, false); diag.HasError() {
+		return nil, diag
 	}
 
-	return &helmfile.Result{
-		Output:   output,
-		ExitCode: 0,
-		Error:    nil,
-	}, nil
+	globalOptions := &config.GlobalOptions{
+		Args:                       strings.Join(stringArgs, " "),
+		DisableForceUpdate:         model.DisableForceUpdate.ValueBool(),
+		EnforcePluginVerification:  model.EnforcePluginVerification.ValueBool(),
+		HelmBinary:                 model.HelmBinaryPath.ValueString(),
+		HelmOCIPlainHTTP:           model.HelmOciPlainHttp.ValueBool(),
+		KustomizeBinary:            model.KustomizeBinaryPath.ValueString(),
+		SkipDeps:                   model.SkipDeps.ValueBool(),
+		SkipRefresh:                model.SkipRefresh.ValueBool(),
+		StripArgsValuesOnExitError: model.StripArgsValuesOnExitError.ValueBool(),
+		EnableLiveOutput:           false,
+		Color:                      false,
+		NoColor:                    true,
+		Debug:                      model.Debug.ValueBool(),
+		Quiet:                      true,
+	}
+	return globalOptions, diag.Diagnostics{}
 }
 
-func (p *HelmfileProvider) Diff(ctx context.Context, options app.ConfigProvider, diffOptions app.DiffConfigProvider) (*helmfile.Result, error) {
-	capture := helmfile.NewOutputCapture()
-	_ = helmfile.CreateCaptureLogger(capture)
+func NewPluginsFromModel(model HelmfileModel) ([]helmfile.HelmPlugin, diag.Diagnostics) {
+	modelPlugins := make([]AdditionalPluginsValue, 0)
+	if diag := model.AdditionalPlugins.ElementsAs(context.Background(), &modelPlugins, false); diag.HasError() {
+		return nil, diag
+	}
+	result := make([]helmfile.HelmPlugin, 0, len(modelPlugins))
+	for _, p := range modelPlugins {
+		result = append(result, helmfile.HelmPlugin{
+			Name:    p.Name.ValueString(),
+			Repo:    p.Repo.ValueString(),
+			Version: p.Version.ValueString(),
+		})
+	}
+	return result, diag.Diagnostics{}
+}
 
-	helmfileApp := app.New(options)
-
-	// Run apply operation
-	err := helmfileApp.Diff(diffOptions)
-
-	// Get captured output and prepend debug info
-	output := capture.String()
-
-	if err != nil {
-		return &helmfile.Result{
-			Output:   output,
-			ExitCode: 1,
-			Error:    err,
-		}, err
+// NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel
+func NewHelmfileProvider(model HelmfileModel) (*HelmfileProvider, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	options, err := NewGlobalOptionsFromModel(model)
+	diags.Append(err...)
+	if err.HasError() {
+		return nil, diags
+	}
+	additionalPlugins, err := NewPluginsFromModel(model)
+	diags.Append(err...)
+	if err.HasError() {
+		return nil, diags
 	}
 
-	return &helmfile.Result{
-		Output:   output,
-		ExitCode: 0,
-		Error:    nil,
-	}, nil
-}
-
-func (p *HelmfileProvider) Template(ctx context.Context, options app.ConfigProvider, templateOptions app.TemplateConfigProvider) (*helmfile.Result, error) {
-	capture := helmfile.NewOutputCapture()
-	_ = helmfile.CreateCaptureLogger(capture)
-
-	helmfileApp := app.New(options)
-
-	// Run apply operation
-	err := helmfileApp.Template(templateOptions)
-
-	// Get captured output and prepend debug info
-	output := capture.String()
-
-	if err != nil {
-		return &helmfile.Result{
-			Output:   output,
-			ExitCode: 1,
-			Error:    err,
-		}, err
-	}
-
-	return &helmfile.Result{
-		Output:   output,
-		ExitCode: 0,
-		Error:    nil,
-	}, nil
-}
-
-func (p *HelmfileProvider) Destroy(ctx context.Context, options app.ConfigProvider, destroyOptions app.DestroyConfigProvider) (*helmfile.Result, error) {
-	capture := helmfile.NewOutputCapture()
-	_ = helmfile.CreateCaptureLogger(capture)
-
-	helmfileApp := app.New(options)
-
-	// Run apply operation
-	err := helmfileApp.Destroy(destroyOptions)
-
-	// Get captured output and prepend debug info
-	output := capture.String()
-
-	if err != nil {
-		return &helmfile.Result{
-			Output:   output,
-			ExitCode: 1,
-			Error:    err,
-		}, err
-	}
-
-	return &helmfile.Result{
-		Output:   output,
-		ExitCode: 0,
-		Error:    nil,
-	}, nil
-}
-
-func (p *HelmfileProvider) Build(ctx context.Context, options app.ConfigProvider) (*helmfile.Result, error) {
-	capture := helmfile.NewOutputCapture()
-	logger := helmfile.CreateCaptureLogger(capture)
-
-	buildOptions := config.NewBuildOptions()
-
-	globalOptions := &config.GlobalOptions{}
-	globalOptions.SetLogger(logger)
-	globalImpl := config.NewGlobalImpl(globalOptions)
-
-	buildImpl := config.NewBuildImpl(globalImpl, buildOptions)
-
-	helmfileApp := app.New(buildImpl)
-	err := helmfileApp.PrintState(buildImpl)
-
-	// Get captured output and prepend debug info
-	output := capture.String()
-
-	if err != nil {
-		return &helmfile.Result{
-			Output:   output,
-			ExitCode: 1,
-			Error:    err,
-		}, err
-	}
-
-	return &helmfile.Result{
-		Output:   output,
-		ExitCode: 0,
-		Error:    nil,
-	}, nil
-}
-
-func (p *HelmfileProvider) Version(ctx context.Context) (string, error) {
-	return version.Version(), nil
+	return &HelmfileProvider{
+		Executor: helmfile.NewHelmfileLibraryExecutor(options, additionalPlugins),
+	}, diags
 }

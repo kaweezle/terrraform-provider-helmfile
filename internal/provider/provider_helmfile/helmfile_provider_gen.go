@@ -4,7 +4,13 @@ package provider_helmfile
 
 import (
 	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 )
@@ -12,11 +18,39 @@ import (
 func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"additional_plugins": schema.ListAttribute{
-				ElementType:         types.StringType,
+			"additional_plugins": schema.ListNestedAttribute{
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Required:            true,
+							Description:         "Name of the helm plugin.",
+							MarkdownDescription: "Name of the helm plugin.",
+						},
+						"repo": schema.StringAttribute{
+							Required:            true,
+							Description:         "The URL of the plugin repository.",
+							MarkdownDescription: "The URL of the plugin repository.",
+						},
+						"version": schema.StringAttribute{
+							Required:            true,
+							Description:         "Version of the plugin",
+							MarkdownDescription: "Version of the plugin",
+						},
+					},
+					CustomType: AdditionalPluginsType{
+						ObjectType: types.ObjectType{
+							AttrTypes: AdditionalPluginsValue{}.AttributeTypes(ctx),
+						},
+					},
+				},
 				Optional:            true,
 				Description:         "List of additional helm plugins to install.",
 				MarkdownDescription: "List of additional helm plugins to install.",
+			},
+			"debug": schema.BoolAttribute{
+				Optional:            true,
+				Description:         "enable debug logging for helmfile operations",
+				MarkdownDescription: "enable debug logging for helmfile operations",
 			},
 			"default_args": schema.ListAttribute{
 				ElementType:         types.StringType,
@@ -75,6 +109,7 @@ func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 
 type HelmfileModel struct {
 	AdditionalPlugins          types.List   `tfsdk:"additional_plugins"`
+	Debug                      types.Bool   `tfsdk:"debug"`
 	DefaultArgs                types.List   `tfsdk:"default_args"`
 	DisableForceUpdate         types.Bool   `tfsdk:"disable_force_update"`
 	EnforcePluginVerification  types.Bool   `tfsdk:"enforce_plugin_verification"`
@@ -85,4 +120,438 @@ type HelmfileModel struct {
 	SkipDeps                   types.Bool   `tfsdk:"skip_deps"`
 	SkipRefresh                types.Bool   `tfsdk:"skip_refresh"`
 	StripArgsValuesOnExitError types.Bool   `tfsdk:"strip_args_values_on_exit_error"`
+}
+
+var _ basetypes.ObjectTypable = AdditionalPluginsType{}
+
+type AdditionalPluginsType struct {
+	basetypes.ObjectType
+}
+
+func (t AdditionalPluginsType) Equal(o attr.Type) bool {
+	other, ok := o.(AdditionalPluginsType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t AdditionalPluginsType) String() string {
+	return "AdditionalPluginsType"
+}
+
+func (t AdditionalPluginsType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributes := in.Attributes()
+
+	nameAttribute, ok := attributes["name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`name is missing from object`)
+
+		return nil, diags
+	}
+
+	nameVal, ok := nameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`name expected to be basetypes.StringValue, was: %T`, nameAttribute))
+	}
+
+	repoAttribute, ok := attributes["repo"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`repo is missing from object`)
+
+		return nil, diags
+	}
+
+	repoVal, ok := repoAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`repo expected to be basetypes.StringValue, was: %T`, repoAttribute))
+	}
+
+	versionAttribute, ok := attributes["version"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`version is missing from object`)
+
+		return nil, diags
+	}
+
+	versionVal, ok := versionAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`version expected to be basetypes.StringValue, was: %T`, versionAttribute))
+	}
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return AdditionalPluginsValue{
+		Name:    nameVal,
+		Repo:    repoVal,
+		Version: versionVal,
+		state:   attr.ValueStateKnown,
+	}, diags
+}
+
+func NewAdditionalPluginsValueNull() AdditionalPluginsValue {
+	return AdditionalPluginsValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewAdditionalPluginsValueUnknown() AdditionalPluginsValue {
+	return AdditionalPluginsValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewAdditionalPluginsValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (AdditionalPluginsValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing AdditionalPluginsValue Attribute Value",
+				"While creating a AdditionalPluginsValue value, a missing attribute value was detected. "+
+					"A AdditionalPluginsValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("AdditionalPluginsValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid AdditionalPluginsValue Attribute Type",
+				"While creating a AdditionalPluginsValue value, an invalid attribute value was detected. "+
+					"A AdditionalPluginsValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("AdditionalPluginsValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("AdditionalPluginsValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra AdditionalPluginsValue Attribute Value",
+				"While creating a AdditionalPluginsValue value, an extra attribute value was detected. "+
+					"A AdditionalPluginsValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra AdditionalPluginsValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewAdditionalPluginsValueUnknown(), diags
+	}
+
+	nameAttribute, ok := attributes["name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`name is missing from object`)
+
+		return NewAdditionalPluginsValueUnknown(), diags
+	}
+
+	nameVal, ok := nameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`name expected to be basetypes.StringValue, was: %T`, nameAttribute))
+	}
+
+	repoAttribute, ok := attributes["repo"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`repo is missing from object`)
+
+		return NewAdditionalPluginsValueUnknown(), diags
+	}
+
+	repoVal, ok := repoAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`repo expected to be basetypes.StringValue, was: %T`, repoAttribute))
+	}
+
+	versionAttribute, ok := attributes["version"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`version is missing from object`)
+
+		return NewAdditionalPluginsValueUnknown(), diags
+	}
+
+	versionVal, ok := versionAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`version expected to be basetypes.StringValue, was: %T`, versionAttribute))
+	}
+
+	if diags.HasError() {
+		return NewAdditionalPluginsValueUnknown(), diags
+	}
+
+	return AdditionalPluginsValue{
+		Name:    nameVal,
+		Repo:    repoVal,
+		Version: versionVal,
+		state:   attr.ValueStateKnown,
+	}, diags
+}
+
+func NewAdditionalPluginsValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) AdditionalPluginsValue {
+	object, diags := NewAdditionalPluginsValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewAdditionalPluginsValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t AdditionalPluginsType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewAdditionalPluginsValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewAdditionalPluginsValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewAdditionalPluginsValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewAdditionalPluginsValueMust(AdditionalPluginsValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t AdditionalPluginsType) ValueType(ctx context.Context) attr.Value {
+	return AdditionalPluginsValue{}
+}
+
+var _ basetypes.ObjectValuable = AdditionalPluginsValue{}
+
+type AdditionalPluginsValue struct {
+	Name    basetypes.StringValue `tfsdk:"name"`
+	Repo    basetypes.StringValue `tfsdk:"repo"`
+	Version basetypes.StringValue `tfsdk:"version"`
+	state   attr.ValueState
+}
+
+func (v AdditionalPluginsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 3)
+
+	var val tftypes.Value
+	var err error
+
+	attrTypes["name"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["repo"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["version"] = basetypes.StringType{}.TerraformType(ctx)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 3)
+
+		val, err = v.Name.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["name"] = val
+
+		val, err = v.Repo.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["repo"] = val
+
+		val, err = v.Version.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["version"] = val
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v AdditionalPluginsValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v AdditionalPluginsValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v AdditionalPluginsValue) String() string {
+	return "AdditionalPluginsValue"
+}
+
+func (v AdditionalPluginsValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{
+		"name":    basetypes.StringType{},
+		"repo":    basetypes.StringType{},
+		"version": basetypes.StringType{},
+	}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{
+			"name":    v.Name,
+			"repo":    v.Repo,
+			"version": v.Version,
+		})
+
+	return objVal, diags
+}
+
+func (v AdditionalPluginsValue) Equal(o attr.Value) bool {
+	other, ok := o.(AdditionalPluginsValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	if !v.Name.Equal(other.Name) {
+		return false
+	}
+
+	if !v.Repo.Equal(other.Repo) {
+		return false
+	}
+
+	if !v.Version.Equal(other.Version) {
+		return false
+	}
+
+	return true
+}
+
+func (v AdditionalPluginsValue) Type(ctx context.Context) attr.Type {
+	return AdditionalPluginsType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v AdditionalPluginsValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{
+		"name":    basetypes.StringType{},
+		"repo":    basetypes.StringType{},
+		"version": basetypes.StringType{},
+	}
 }

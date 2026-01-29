@@ -40,7 +40,10 @@ provider "helmfile" {
 
   # Optional: Additional helm plugins to install
   # additional_plugins = [
-  #   "https://github.com/databus23/helm-diff",
-  #   "https://github.com/jkroepke/helm-secrets"
+  #   {
+  #     name    = "x"
+  #     version = "0.8.0"
+  #     repo    = "https://github.com/mumoshu/helm-x"
+  #   },
   # ]
 }

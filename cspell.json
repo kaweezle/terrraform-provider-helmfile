@@ -1,9 +1,19 @@
 {
   "version": "0.2",
   "language": "en",
-  "ignorePaths": ["dist", "go.*", ".gitignore"],
+  "ignorePaths": [
+    "dist",
+    "go.*",
+    ".gitignore"
+  ],
   "dictionaryDefinitions": [],
-  "dictionaries": ["bash", "docker", "golang", "terraform", "softwareTerms"],
+  "dictionaries": [
+    "bash",
+    "docker",
+    "golang",
+    "terraform",
+    "softwareTerms"
+  ],
   "words": [
     "crds",
     "eksctl",
@@ -11,9 +21,12 @@
     "golangci",
     "goreleaser",
     "gotmpl",
+    "helmfiles",
     "kaweezle",
     "Kubeconfig",
+    "kustomizations",
     "mumoshu",
+    "tflog",
     "tfsdk"
   ],
   "ignoreWords": [],

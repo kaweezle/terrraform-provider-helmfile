@@ -69,6 +69,18 @@
       "detail": "Run go mod tidy"
     },
     {
+      "label": "go install",
+      "type": "shell",
+      "command": "go",
+      "args": ["install"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"],
+      "detail": "Run go install"
+    },
+    {
       "label": "pre-commit",
       "type": "shell",
       "command": "pre-commit",
@@ -94,7 +106,7 @@
       "args": ["build", "--single-target", "--auto-snapshot", "--clean"],
       "group": {
         "kind": "build",
-        "isDefault": true
+        "isDefault": false
       },
       "options": {
         "env": {

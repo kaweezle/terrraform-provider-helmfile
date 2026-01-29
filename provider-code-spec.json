@@ -81,12 +81,41 @@
         },
         {
           "name": "additional_plugins",
-          "list": {
-            "element_type": {
-              "string": {}
+          "list_nested": {
+            "nested_object": {
+              "attributes": [
+                {
+                  "name": "name",
+                  "string": {
+                    "description": "Name of the helm plugin.",
+                    "optional_required": "required"
+                  }
+                },
+                {
+                  "name": "version",
+                  "string": {
+                    "description": "Version of the plugin",
+                    "optional_required": "required"
+                  }
+                },
+                {
+                  "name": "repo",
+                  "string": {
+                    "description": "The URL of the plugin repository.",
+                    "optional_required": "required"
+                  }
+                }
+              ]
             },
             "optional_required": "optional",
             "description": "List of additional helm plugins to install."
+          }
+        },
+        {
+          "name": "debug",
+          "bool": {
+            "description": "enable debug logging for helmfile operations",
+            "optional_required": "optional"
           }
         }
       ]
