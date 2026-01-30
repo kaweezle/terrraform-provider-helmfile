@@ -4,7 +4,9 @@ package resource_helmfile_release
 
 import (
 	"context"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/kaweezle/terraform-provider-helmfile/internal/provider/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 )
@@ -96,6 +98,9 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "Use a particular kubeconfig file.",
 				MarkdownDescription: "Use a particular kubeconfig file.",
+				Validators: []validator.String{
+					&utils.ExistingFileOrDirectoryValidator{AllowDirectory: false},
+				},
 			},
 			"log_level": schema.StringAttribute{
 				Optional:            true,

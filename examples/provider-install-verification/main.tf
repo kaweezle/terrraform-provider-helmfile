@@ -16,8 +16,8 @@ provider "helmfile" {
       repo    = "https://github.com/mumoshu/helm-x"
     }
   ]
-  log_level = "debug"
-
+  log_level  = "debug"
+  kubeconfig = "/root/kubeconfig"
 }
 
 resource "helmfile_release" "example" {

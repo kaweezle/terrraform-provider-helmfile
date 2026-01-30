@@ -1,6 +1,6 @@
 // Copyright Antoine Martin 2026
 // SPDX-License-Identifier: MIT
-// cSpell: words syncer wrapcheck
+// cSpell: words syncer wrapcheck containedctx
 
 package helmfile
 
@@ -19,9 +19,9 @@ var _ zapcore.WriteSyncer = (*OutputCapture)(nil)
 
 // OutputCapture captures log output from helmfile operations.
 type OutputCapture struct {
+	ctx    context.Context //nolint:containedctx // we want to keep the context for logging
 	buffer *bytes.Buffer
 	mutex  sync.Mutex
-	ctx    context.Context
 }
 
 // NewOutputCapture creates a new output capture.

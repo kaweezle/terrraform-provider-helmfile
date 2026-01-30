@@ -4,6 +4,7 @@
   "provider": {
     "name": "helmfile",
     "description": "A Terraform provider for managing Helmfile releases.",
+    "markdown_description": "A Terraform provider for managing Helmfile releases.",
     "schema": {
       "attributes": [
         {
@@ -83,7 +84,19 @@
           "name": "kubeconfig",
           "string": {
             "description": "Use a particular kubeconfig file.",
-            "optional_required": "optional"
+            "optional_required": "optional",
+            "validators": [
+              {
+                "custom": {
+                  "imports": [
+                    {
+                      "path": "github.com/kaweezle/terraform-provider-helmfile/internal/provider/utils"
+                    }
+                  ],
+                  "schema_definition": "&utils.ExistingFileOrDirectoryValidator{AllowDirectory: false}"
+                }
+              }
+            ]
           }
         },
         {
@@ -202,7 +215,19 @@
             "name": "kubeconfig",
             "string": {
               "description": "Use a particular kubeconfig file.",
-              "computed_optional_required": "optional"
+              "computed_optional_required": "optional",
+              "validators": [
+                {
+                  "custom": {
+                    "imports": [
+                      {
+                        "path": "github.com/kaweezle/terraform-provider-helmfile/internal/provider/utils"
+                      }
+                    ],
+                    "schema_definition": "&utils.ExistingFileOrDirectoryValidator{AllowDirectory: false}"
+                  }
+                }
+              ]
             }
           },
           {

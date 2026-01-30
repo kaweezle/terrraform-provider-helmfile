@@ -70,13 +70,16 @@ provider "helmfile" {
 ### Optional
 
 - `additional_plugins` (Attributes List) List of additional helm plugins to install. (see [below for nested schema](#nestedatt--additional_plugins))
-- `debug` (Boolean) enable debug logging for helmfile operations
 - `default_args` (List of String) List of default arguments to pass to every helmfile command.
 - `disable_force_update` (Boolean) do not force helm repos to update when executing "helm repo add"
 - `enforce_plugin_verification` (Boolean) enforce helm plugin verification when installing missing plugins
+- `env_vars` (Map of String) Environment variables to set for helmfile operations.
+- `environment` (String) Specify the environment name. Defaults to 'default'.
 - `helm_binary_path` (String) Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.
 - `helm_oci_plain_http` (Boolean) allow using plain HTTP when pulling charts from OCI registries
+- `kubeconfig` (String) Use a particular kubeconfig file.
 - `kustomize_binary_path` (String) Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.
+- `log_level` (String) Set log level for helmfile operations. Valid values are: trace, debug, info, warn, error. Default is info.
 - `perform_init` (Boolean) Whether to run 'helmfile init' before applying any helmfile operations.
 - `skip_deps` (Boolean) skip running "helm repo update" and "helm dependency build"
 - `skip_refresh` (Boolean) skip running 'helmfile repos' before applying any helmfile operations.

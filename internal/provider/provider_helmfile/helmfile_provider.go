@@ -22,19 +22,19 @@ type HelmfileProvider struct {
 func NewGlobalOptionsFromModel(
 	ctx context.Context,
 	model *HelmfileModel,
-) (helmfile.GlobalOptions, diag.Diagnostics) {
+) (*helmfile.GlobalOptions, diag.Diagnostics) {
 	stringArgs := make([]string, 0)
 	if diags := model.DefaultArgs.ElementsAs(ctx, &stringArgs, false); diags.HasError() {
-		return helmfile.GlobalOptions{}, diags
+		return nil, diags
 	}
 	envVars := make(map[string]string)
-	if model.EnvVars.IsNull() == false {
+	if !model.EnvVars.IsNull() {
 		for k, v := range model.EnvVars.Elements() {
 			envVars[k] = v.String()
 		}
 	}
 
-	globalOptions := helmfile.GlobalOptions{
+	globalOptions := &helmfile.GlobalOptions{
 		BaseGlobalOptions: helmfile.BaseGlobalOptions{},
 		CommonOptions:     helmfile.CommonOptions{},
 	}

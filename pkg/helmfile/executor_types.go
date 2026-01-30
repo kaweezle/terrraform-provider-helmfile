@@ -211,8 +211,8 @@ func (o *BaseGlobalOptions) WithSkipRefresh(skip bool) *BaseGlobalOptions {
 // GlobalOptions implements GlobalOptionsProvider by embedding
 // BaseGlobalOptions and CommonOptions.
 type GlobalOptions struct {
-	BaseGlobalOptions
 	CommonOptions
+	BaseGlobalOptions
 }
 
 // CopyFrom copies global options from a provider.
@@ -308,8 +308,8 @@ func NewBaseResourceOptions(from BaseResourceOptionsProvider) BaseResourceOption
 // ResourceOptions implements ResourceOptionsProvider by embedding
 // BaseResourceOptions and CommonOptions.
 type ResourceOptions struct {
-	BaseResourceOptions
 	CommonOptions
+	BaseResourceOptions
 }
 
 // CopyFrom copies resource options from a provider.

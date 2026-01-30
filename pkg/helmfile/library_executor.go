@@ -30,13 +30,13 @@ type HelmPlugin struct {
 
 // HelmfileLibraryExecutor is the Helmfile provider implementation.
 type HelmfileLibraryExecutor struct {
-	globalOptions     GlobalOptions
+	globalOptions     *GlobalOptions
 	additionalPlugins []HelmPlugin
 }
 
 // NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel.
 func NewHelmfileLibraryExecutor(
-	options GlobalOptions,
+	options *GlobalOptions,
 	additionalPlugins []HelmPlugin,
 ) *HelmfileLibraryExecutor {
 	return &HelmfileLibraryExecutor{
@@ -269,7 +269,7 @@ func (p *HelmfileLibraryExecutor) Init(
 func (p *HelmfileLibraryExecutor) Apply(
 	ctx context.Context,
 	options OptionsProvider,
-	applyOptions config.ApplyOptions,
+	applyOptions *config.ApplyOptions,
 ) (string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
@@ -279,7 +279,7 @@ func (p *HelmfileLibraryExecutor) Apply(
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
 
-	applyOptionsImpl := config.NewApplyImpl(globalOptions, &applyOptions)
+	applyOptionsImpl := config.NewApplyImpl(globalOptions, applyOptions)
 
 	helmfileApp := app.New(applyOptionsImpl)
 
@@ -292,7 +292,7 @@ func (p *HelmfileLibraryExecutor) Apply(
 func (p *HelmfileLibraryExecutor) Diff(
 	ctx context.Context,
 	options OptionsProvider,
-	diffOptions config.DiffOptions,
+	diffOptions *config.DiffOptions,
 ) (string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
@@ -301,7 +301,7 @@ func (p *HelmfileLibraryExecutor) Diff(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
-	diffOptionsImpl := config.NewDiffImpl(globalOptions, &diffOptions)
+	diffOptionsImpl := config.NewDiffImpl(globalOptions, diffOptions)
 	helmfileApp := app.New(diffOptionsImpl)
 
 	// Run apply operation
@@ -313,7 +313,7 @@ func (p *HelmfileLibraryExecutor) Diff(
 func (p *HelmfileLibraryExecutor) Template(
 	ctx context.Context,
 	options OptionsProvider,
-	templateOptions config.TemplateOptions,
+	templateOptions *config.TemplateOptions,
 ) (string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
@@ -322,7 +322,7 @@ func (p *HelmfileLibraryExecutor) Template(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
-	templateOptionsImpl := config.NewTemplateImpl(globalOptions, &templateOptions)
+	templateOptionsImpl := config.NewTemplateImpl(globalOptions, templateOptions)
 	helmfileApp := app.New(templateOptionsImpl)
 
 	// Run apply operation
@@ -334,7 +334,7 @@ func (p *HelmfileLibraryExecutor) Template(
 func (p *HelmfileLibraryExecutor) Destroy(
 	ctx context.Context,
 	options OptionsProvider,
-	destroyOptions config.DestroyOptions,
+	destroyOptions *config.DestroyOptions,
 ) (string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
@@ -343,7 +343,7 @@ func (p *HelmfileLibraryExecutor) Destroy(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
-	destroyOptionsImpl := config.NewDestroyImpl(globalOptions, &destroyOptions)
+	destroyOptionsImpl := config.NewDestroyImpl(globalOptions, destroyOptions)
 	helmfileApp := app.New(destroyOptionsImpl)
 
 	// Run apply operation

@@ -63,28 +63,28 @@ type HelmfileExecutor interface {
 	Apply(
 		ctx context.Context,
 		options OptionsProvider,
-		applyOptions config.ApplyOptions,
+		applyOptions *config.ApplyOptions,
 	) (string, error)
 
 	// Diff runs helmfile diff to show changes
 	Diff(
 		ctx context.Context,
 		options OptionsProvider,
-		diffOptions config.DiffOptions,
+		diffOptions *config.DiffOptions,
 	) (string, error)
 
 	// Template runs helmfile template to render manifests
 	Template(
 		ctx context.Context,
 		options OptionsProvider,
-		templateOptions config.TemplateOptions,
+		templateOptions *config.TemplateOptions,
 	) (string, error)
 
 	// Destroy runs helmfile destroy to delete releases
 	Destroy(
 		ctx context.Context,
 		options OptionsProvider,
-		destroyOptions config.DestroyOptions,
+		destroyOptions *config.DestroyOptions,
 	) (string, error)
 
 	// Build runs helmfile build to validate configuration
