@@ -16,9 +16,12 @@ provider "helmfile" {
       repo    = "https://github.com/mumoshu/helm-x"
     }
   ]
+  log_level = "debug"
+
 }
 
 resource "helmfile_release" "example" {
   name         = "prometheus"
   file_or_path = "${path.module}/helmfile.yaml"
+  kubeconfig   = "/root/kubeconfig"
 }

@@ -30,92 +30,19 @@ type HelmPlugin struct {
 
 // HelmfileLibraryExecutor is the Helmfile provider implementation.
 type HelmfileLibraryExecutor struct {
-	globalOptions     *config.GlobalOptions
+	globalOptions     GlobalOptions
 	additionalPlugins []HelmPlugin
 }
 
 // NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel.
 func NewHelmfileLibraryExecutor(
-	options *config.GlobalOptions,
+	options GlobalOptions,
 	additionalPlugins []HelmPlugin,
 ) *HelmfileLibraryExecutor {
 	return &HelmfileLibraryExecutor{
 		globalOptions:     options,
 		additionalPlugins: additionalPlugins,
 	}
-}
-
-//nolint:gocyclo // Structure is heavy
-func copyOptions(globalOptions *config.GlobalOptions, options app.ConfigProvider) {
-	if options == nil {
-		return
-	}
-	if options.Args() != "" {
-		globalOptions.Args = options.Args()
-	}
-	if options.HelmBinary() != "" {
-		globalOptions.HelmBinary = options.HelmBinary()
-	}
-	if options.KustomizeBinary() != "" {
-		globalOptions.KustomizeBinary = options.KustomizeBinary()
-	}
-
-	globalOptions.StripArgsValuesOnExitError = globalOptions.StripArgsValuesOnExitError ||
-		options.StripArgsValuesOnExitError()
-	globalOptions.DisableForceUpdate = globalOptions.DisableForceUpdate ||
-		options.DisableForceUpdate()
-	globalOptions.EnforcePluginVerification = globalOptions.EnforcePluginVerification ||
-		options.EnforcePluginVerification()
-	globalOptions.HelmOCIPlainHTTP = globalOptions.HelmOCIPlainHTTP ||
-		options.HelmOCIPlainHTTP()
-	globalOptions.SkipDeps = globalOptions.SkipDeps || options.SkipDeps()
-	globalOptions.SkipRefresh = globalOptions.SkipRefresh || options.SkipRefresh()
-
-	if options.FileOrDir() != "" {
-		globalOptions.File = options.FileOrDir()
-	}
-	if options.KubeContext() != "" {
-		globalOptions.KubeContext = options.KubeContext()
-	}
-	if options.Namespace() != "" {
-		globalOptions.Namespace = options.Namespace()
-	}
-	if options.Chart() != "" {
-		globalOptions.Chart = options.Chart()
-	}
-	if len(options.Selectors()) > 0 {
-		globalOptions.Selector = options.Selectors()
-	}
-	if len(options.StateValuesFiles()) > 0 {
-		globalOptions.StateValuesFile = options.StateValuesFiles()
-	}
-	if options.Kubeconfig() != "" {
-		globalOptions.Kubeconfig = options.Kubeconfig()
-	}
-	if options.Env() != "" {
-		globalOptions.Environment = options.Env()
-	}
-}
-
-func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
-	options app.ConfigProvider,
-	logger *zap.SugaredLogger,
-) (*config.GlobalImpl, error) {
-	globalOptions := *p.globalOptions
-	copyOptions(&globalOptions, options)
-	globalOptions.SetLogger(logger)
-	result := config.NewGlobalImpl(&globalOptions)
-	if options != nil {
-		stateValueSets := options.StateValuesSet()
-		if stateValueSets != nil {
-			result.SetSet(stateValueSets)
-		}
-	}
-	err := config.NewCLIConfigImpl(result)
-	if err != nil {
-		return nil, fmt.Errorf("error while creating global options: %w", err)
-	}
-	return result, nil
 }
 
 func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
@@ -126,10 +53,10 @@ func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
 	runner := &helmexec.ShellRunner{
 		Logger:                     logger,
 		Ctx:                        ctx,
-		StripArgsValuesOnExitError: p.globalOptions.StripArgsValuesOnExitError,
+		StripArgsValuesOnExitError: p.globalOptions.StripArgsValuesOnExitError(),
 	}
 	helm, err := helmexec.New(
-		p.globalOptions.HelmBinary,
+		p.globalOptions.HelmBinary(),
 		helmexec.HelmExecOptions{},
 		logger,
 		"",
@@ -204,14 +131,123 @@ func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
 	return nil
 }
 
+//nolint:gocyclo // Structure is heavy
+func copyOptions(globalOptions *config.GlobalOptions, options OptionsProvider) {
+	if options == nil {
+		return
+	}
+	if options.DefaultArgs() != "" {
+		globalOptions.Args = options.DefaultArgs()
+	}
+	if options.HelmBinary() != "" {
+		globalOptions.HelmBinary = options.HelmBinary()
+	}
+	if options.KustomizeBinary() != "" {
+		globalOptions.KustomizeBinary = options.KustomizeBinary()
+	}
+
+	globalOptions.StripArgsValuesOnExitError = globalOptions.StripArgsValuesOnExitError ||
+		options.StripArgsValuesOnExitError()
+	globalOptions.DisableForceUpdate = globalOptions.DisableForceUpdate ||
+		options.DisableForceUpdate()
+	globalOptions.EnforcePluginVerification = globalOptions.EnforcePluginVerification ||
+		options.EnforcePluginVerification()
+	globalOptions.HelmOCIPlainHTTP = globalOptions.HelmOCIPlainHTTP ||
+		options.HelmOCIPlainHTTP()
+	globalOptions.SkipDeps = globalOptions.SkipDeps || options.SkipDeps()
+	globalOptions.SkipRefresh = globalOptions.SkipRefresh || options.SkipRefresh()
+
+	if options.Args() != "" {
+		globalOptions.Args = options.Args()
+	}
+	if options.FileOrDir() != "" {
+		globalOptions.File = options.FileOrDir()
+	}
+	if options.KubeContext() != "" {
+		globalOptions.KubeContext = options.KubeContext()
+	}
+	if options.Namespace() != "" {
+		globalOptions.Namespace = options.Namespace()
+	}
+	if options.Chart() != "" {
+		globalOptions.Chart = options.Chart()
+	}
+	if len(options.Selectors()) > 0 {
+		globalOptions.Selector = options.Selectors()
+	}
+	if len(options.StateValuesFiles()) > 0 {
+		globalOptions.StateValuesFile = options.StateValuesFiles()
+	}
+	if options.Kubeconfig() != "" {
+		globalOptions.Kubeconfig = options.Kubeconfig()
+	}
+	if options.Environment() != "" {
+		globalOptions.Environment = options.Environment()
+	}
+}
+
+func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
+	options OptionsProvider,
+	logger *zap.SugaredLogger,
+) (*config.GlobalImpl, error) {
+	globalOptions := config.GlobalOptions{
+		Args:                       p.globalOptions.DefaultArgs(),
+		HelmBinary:                 p.globalOptions.HelmBinary(),
+		KustomizeBinary:            p.globalOptions.KustomizeBinary(),
+		StripArgsValuesOnExitError: p.globalOptions.StripArgsValuesOnExitError(),
+		DisableForceUpdate:         p.globalOptions.DisableForceUpdate(),
+		EnforcePluginVerification:  p.globalOptions.EnforcePluginVerification(),
+		HelmOCIPlainHTTP:           p.globalOptions.HelmOCIPlainHTTP(),
+		SkipDeps:                   p.globalOptions.SkipDeps(),
+		SkipRefresh:                p.globalOptions.SkipRefresh(),
+		Kubeconfig:                 p.globalOptions.Kubeconfig(),
+		Environment:                p.globalOptions.Environment(),
+		LogLevel:                   p.globalOptions.LogLevel(),
+		EnableLiveOutput:           false,
+		Color:                      false,
+		NoColor:                    true,
+	}
+	copyOptions(&globalOptions, options)
+	globalOptions.SetLogger(logger)
+	result := config.NewGlobalImpl(&globalOptions)
+	if options != nil {
+		stateValueSets := options.StateValuesSet()
+		if stateValueSets != nil {
+			result.SetSet(stateValueSets)
+		}
+	}
+	err := config.NewCLIConfigImpl(result)
+	if err != nil {
+		return nil, fmt.Errorf("error while creating global options: %w", err)
+	}
+	return result, nil
+}
+
 func (p *HelmfileLibraryExecutor) Init(
 	ctx context.Context,
-	options app.ConfigProvider,
+	options BaseGlobalOptionsProvider,
 ) (string, error) {
-	capture := NewOutputCapture()
+	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
 
-	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	var globalOptions *config.GlobalImpl
+	var err error
+	if options == nil {
+		globalOptions, err = p.createGlobalOptionsFromConfigProvider(nil, logger)
+	} else {
+		// Create a simple OptionsProvider that just wraps the BaseGlobalOptionsProvider
+		// and our stored global options
+		wrappedOptions := struct {
+			BaseGlobalOptionsProvider
+			CommonOptionsProvider
+			BaseResourceOptionsProvider
+		}{
+			BaseGlobalOptionsProvider:   options,
+			CommonOptionsProvider:       &p.globalOptions.CommonOptions,
+			BaseResourceOptionsProvider: &BaseResourceOptions{},
+		}
+		globalOptions, err = p.createGlobalOptionsFromConfigProvider(wrappedOptions, logger)
+	}
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
@@ -231,75 +267,98 @@ func (p *HelmfileLibraryExecutor) Init(
 }
 
 func (p *HelmfileLibraryExecutor) Apply(
-	_ context.Context,
-	options app.ConfigProvider,
-	applyOptions app.ApplyConfigProvider,
+	ctx context.Context,
+	options OptionsProvider,
+	applyOptions config.ApplyOptions,
 ) (string, error) {
-	capture := NewOutputCapture()
-	_ = CreateCaptureLogger(capture)
+	capture := NewOutputCapture(ctx)
+	logger := CreateCaptureLogger(capture)
 
-	helmfileApp := app.New(options)
+	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	if err != nil {
+		return "", fmt.Errorf("error performing init: %w", err)
+	}
+
+	applyOptionsImpl := config.NewApplyImpl(globalOptions, &applyOptions)
+
+	helmfileApp := app.New(applyOptionsImpl)
 
 	// Run apply operation
-	err := helmfileApp.Apply(applyOptions)
+	err = helmfileApp.Apply(applyOptionsImpl)
 
 	return capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Diff(
-	_ context.Context,
-	options app.ConfigProvider,
-	diffOptions app.DiffConfigProvider,
+	ctx context.Context,
+	options OptionsProvider,
+	diffOptions config.DiffOptions,
 ) (string, error) {
-	capture := NewOutputCapture()
-	_ = CreateCaptureLogger(capture)
+	capture := NewOutputCapture(ctx)
+	logger := CreateCaptureLogger(capture)
 
-	helmfileApp := app.New(options)
+	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	if err != nil {
+		return "", fmt.Errorf("error performing init: %w", err)
+	}
+	diffOptionsImpl := config.NewDiffImpl(globalOptions, &diffOptions)
+	helmfileApp := app.New(diffOptionsImpl)
 
 	// Run apply operation
-	err := helmfileApp.Diff(diffOptions)
+	err = helmfileApp.Diff(diffOptionsImpl)
 
 	return capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Template(
-	_ context.Context,
-	options app.ConfigProvider,
-	templateOptions app.TemplateConfigProvider,
+	ctx context.Context,
+	options OptionsProvider,
+	templateOptions config.TemplateOptions,
 ) (string, error) {
-	capture := NewOutputCapture()
-	_ = CreateCaptureLogger(capture)
+	capture := NewOutputCapture(ctx)
+	logger := CreateCaptureLogger(capture)
 
-	helmfileApp := app.New(options)
+	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	if err != nil {
+		return "", fmt.Errorf("error performing init: %w", err)
+	}
+	templateOptionsImpl := config.NewTemplateImpl(globalOptions, &templateOptions)
+	helmfileApp := app.New(templateOptionsImpl)
 
 	// Run apply operation
-	err := helmfileApp.Template(templateOptions)
+	err = helmfileApp.Template(templateOptionsImpl)
 
 	return capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Destroy(
-	_ context.Context,
-	options app.ConfigProvider,
-	destroyOptions app.DestroyConfigProvider,
+	ctx context.Context,
+	options OptionsProvider,
+	destroyOptions config.DestroyOptions,
 ) (string, error) {
-	capture := NewOutputCapture()
-	_ = CreateCaptureLogger(capture)
+	capture := NewOutputCapture(ctx)
+	logger := CreateCaptureLogger(capture)
 
-	helmfileApp := app.New(options)
+	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	if err != nil {
+		return "", fmt.Errorf("error performing init: %w", err)
+	}
+	destroyOptionsImpl := config.NewDestroyImpl(globalOptions, &destroyOptions)
+	helmfileApp := app.New(destroyOptionsImpl)
 
 	// Run apply operation
-	err := helmfileApp.Destroy(destroyOptions)
+	err = helmfileApp.Destroy(destroyOptionsImpl)
 
 	// Get captured output and prepend debug info
 	return capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Build(
-	_ context.Context,
-	options app.ConfigProvider,
+	ctx context.Context,
+	options OptionsProvider,
+	embedValues bool,
 ) (string, error) {
-	capture := NewOutputCapture()
+	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
 
 	globalImpl, err := p.createGlobalOptionsFromConfigProvider(options, logger)
@@ -307,7 +366,9 @@ func (p *HelmfileLibraryExecutor) Build(
 		return "", fmt.Errorf("error creating global options: %w", err)
 	}
 
-	buildImpl := config.NewBuildImpl(globalImpl, config.NewBuildOptions())
+	buildImpl := config.NewBuildImpl(globalImpl, &config.BuildOptions{
+		EmbedValues: embedValues,
+	})
 
 	helmfileApp := app.New(buildImpl)
 	err = helmfileApp.PrintState(buildImpl)

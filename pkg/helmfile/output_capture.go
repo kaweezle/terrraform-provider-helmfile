@@ -21,12 +21,14 @@ var _ zapcore.WriteSyncer = (*OutputCapture)(nil)
 type OutputCapture struct {
 	buffer *bytes.Buffer
 	mutex  sync.Mutex
+	ctx    context.Context
 }
 
 // NewOutputCapture creates a new output capture.
-func NewOutputCapture() *OutputCapture {
+func NewOutputCapture(ctx context.Context) *OutputCapture {
 	return &OutputCapture{
 		buffer: &bytes.Buffer{},
+		ctx:    ctx,
 	}
 }
 
@@ -35,7 +37,7 @@ func (o *OutputCapture) Write(p []byte) (int, error) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	// FIXME: Should provide a better structured logging integration
-	tflog.Debug(context.Background(), string(p))
+	tflog.Debug(o.ctx, string(p))
 	//nolint:wrapcheck // we want to return the original error
 	return o.buffer.Write(p)
 }

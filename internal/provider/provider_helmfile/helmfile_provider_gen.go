@@ -5,8 +5,10 @@ package provider_helmfile
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -47,11 +49,6 @@ func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 				Description:         "List of additional helm plugins to install.",
 				MarkdownDescription: "List of additional helm plugins to install.",
 			},
-			"debug": schema.BoolAttribute{
-				Optional:            true,
-				Description:         "enable debug logging for helmfile operations",
-				MarkdownDescription: "enable debug logging for helmfile operations",
-			},
 			"default_args": schema.ListAttribute{
 				ElementType:         types.StringType,
 				Optional:            true,
@@ -68,6 +65,17 @@ func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 				Description:         "enforce helm plugin verification when installing missing plugins",
 				MarkdownDescription: "enforce helm plugin verification when installing missing plugins",
 			},
+			"env_vars": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				Description:         "Environment variables to set for helmfile operations.",
+				MarkdownDescription: "Environment variables to set for helmfile operations.",
+			},
+			"environment": schema.StringAttribute{
+				Optional:            true,
+				Description:         "Specify the environment name. Defaults to 'default'.",
+				MarkdownDescription: "Specify the environment name. Defaults to 'default'.",
+			},
 			"helm_binary_path": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.",
@@ -78,10 +86,29 @@ func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 				Description:         "allow using plain HTTP when pulling charts from OCI registries",
 				MarkdownDescription: "allow using plain HTTP when pulling charts from OCI registries",
 			},
+			"kubeconfig": schema.StringAttribute{
+				Optional:            true,
+				Description:         "Use a particular kubeconfig file.",
+				MarkdownDescription: "Use a particular kubeconfig file.",
+			},
 			"kustomize_binary_path": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
 				MarkdownDescription: "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
+			},
+			"log_level": schema.StringAttribute{
+				Optional:            true,
+				Description:         "Set log level for helmfile operations. Valid values are: trace, debug, info, warn, error. Default is info.",
+				MarkdownDescription: "Set log level for helmfile operations. Valid values are: trace, debug, info, warn, error. Default is info.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(
+						"trace",
+						"debug",
+						"info",
+						"warn",
+						"error",
+					),
+				},
 			},
 			"perform_init": schema.BoolAttribute{
 				Optional:            true,
@@ -109,13 +136,16 @@ func HelmfileProviderSchema(ctx context.Context) schema.Schema {
 
 type HelmfileModel struct {
 	AdditionalPlugins          types.List   `tfsdk:"additional_plugins"`
-	Debug                      types.Bool   `tfsdk:"debug"`
 	DefaultArgs                types.List   `tfsdk:"default_args"`
 	DisableForceUpdate         types.Bool   `tfsdk:"disable_force_update"`
 	EnforcePluginVerification  types.Bool   `tfsdk:"enforce_plugin_verification"`
+	EnvVars                    types.Map    `tfsdk:"env_vars"`
+	Environment                types.String `tfsdk:"environment"`
 	HelmBinaryPath             types.String `tfsdk:"helm_binary_path"`
 	HelmOciPlainHttp           types.Bool   `tfsdk:"helm_oci_plain_http"`
+	Kubeconfig                 types.String `tfsdk:"kubeconfig"`
 	KustomizeBinaryPath        types.String `tfsdk:"kustomize_binary_path"`
+	LogLevel                   types.String `tfsdk:"log_level"`
 	PerformInit                types.Bool   `tfsdk:"perform_init"`
 	SkipDeps                   types.Bool   `tfsdk:"skip_deps"`
 	SkipRefresh                types.Bool   `tfsdk:"skip_refresh"`

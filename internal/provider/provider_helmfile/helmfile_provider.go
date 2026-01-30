@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/helmfile/helmfile/pkg/config"
 	"github.com/kaweezle/terraform-provider-helmfile/pkg/helmfile"
 )
 
@@ -23,28 +22,42 @@ type HelmfileProvider struct {
 func NewGlobalOptionsFromModel(
 	ctx context.Context,
 	model *HelmfileModel,
-) (*config.GlobalOptions, diag.Diagnostics) {
+) (helmfile.GlobalOptions, diag.Diagnostics) {
 	stringArgs := make([]string, 0)
 	if diags := model.DefaultArgs.ElementsAs(ctx, &stringArgs, false); diags.HasError() {
-		return nil, diags
+		return helmfile.GlobalOptions{}, diags
+	}
+	envVars := make(map[string]string)
+	if model.EnvVars.IsNull() == false {
+		for k, v := range model.EnvVars.Elements() {
+			envVars[k] = v.String()
+		}
 	}
 
-	globalOptions := &config.GlobalOptions{
-		Args:                       strings.Join(stringArgs, " "),
-		DisableForceUpdate:         model.DisableForceUpdate.ValueBool(),
-		EnforcePluginVerification:  model.EnforcePluginVerification.ValueBool(),
-		HelmBinary:                 model.HelmBinaryPath.ValueString(),
-		HelmOCIPlainHTTP:           model.HelmOciPlainHttp.ValueBool(),
-		KustomizeBinary:            model.KustomizeBinaryPath.ValueString(),
-		SkipDeps:                   model.SkipDeps.ValueBool(),
-		SkipRefresh:                model.SkipRefresh.ValueBool(),
-		StripArgsValuesOnExitError: model.StripArgsValuesOnExitError.ValueBool(),
-		EnableLiveOutput:           false,
-		Color:                      false,
-		NoColor:                    true,
-		Debug:                      model.Debug.ValueBool(),
-		Quiet:                      true,
+	globalOptions := helmfile.GlobalOptions{
+		BaseGlobalOptions: helmfile.BaseGlobalOptions{},
+		CommonOptions:     helmfile.CommonOptions{},
 	}
+
+	// Set base global options
+	globalOptions.BaseGlobalOptions.
+		WithDefaultArgs(strings.Join(stringArgs, " ")).
+		WithDisableForceUpdate(model.DisableForceUpdate.ValueBool()).
+		WithEnforcePluginVerification(model.EnforcePluginVerification.ValueBool()).
+		WithHelmBinary(model.HelmBinaryPath.ValueString()).
+		WithHelmOCIPlainHTTP(model.HelmOciPlainHttp.ValueBool()).
+		WithKustomizeBinary(model.KustomizeBinaryPath.ValueString()).
+		WithSkipDeps(model.SkipDeps.ValueBool()).
+		WithSkipRefresh(model.SkipRefresh.ValueBool()).
+		WithStripArgsValuesOnExitError(model.StripArgsValuesOnExitError.ValueBool())
+
+	// Set common options
+	globalOptions.CommonOptions.
+		WithLogLevel(model.LogLevel.ValueString()).
+		WithKubeconfig(model.Kubeconfig.ValueString()).
+		WithEnvironment(model.Environment.ValueString()).
+		WithEnvVars(envVars)
+
 	return globalOptions, diag.Diagnostics{}
 }
 

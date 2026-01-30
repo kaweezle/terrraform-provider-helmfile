@@ -80,6 +80,49 @@
           }
         },
         {
+          "name": "kubeconfig",
+          "string": {
+            "description": "Use a particular kubeconfig file.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "environment",
+          "string": {
+            "description": "Specify the environment name. Defaults to 'default'.",
+            "optional_required": "optional"
+          }
+        },
+        {
+          "name": "env_vars",
+          "map": {
+            "element_type": {
+              "string": {}
+            },
+            "optional_required": "optional",
+            "description": "Environment variables to set for helmfile operations."
+          }
+        },
+        {
+          "name": "log_level",
+          "string": {
+            "description": "Set log level for helmfile operations. Valid values are: trace, debug, info, warn, error. Default is info.",
+            "optional_required": "optional",
+            "validators": [
+              {
+                "custom": {
+                  "imports": [
+                    {
+                      "path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+                    }
+                  ],
+                  "schema_definition": "stringvalidator.OneOf(\n\"trace\",\n\"debug\",\n\"info\",\n\"warn\",\n\"error\",\n)"
+                }
+              }
+            ]
+          }
+        },
+        {
           "name": "additional_plugins",
           "list_nested": {
             "nested_object": {
@@ -109,13 +152,6 @@
             },
             "optional_required": "optional",
             "description": "List of additional helm plugins to install."
-          }
-        },
-        {
-          "name": "debug",
-          "bool": {
-            "description": "enable debug logging for helmfile operations",
-            "optional_required": "optional"
           }
         }
       ]
