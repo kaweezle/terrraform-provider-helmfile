@@ -188,7 +188,8 @@ func NewApplyOptionsFromModel(
 
 	if !model.SuppressOutputLineRegex.IsNull() && !model.SuppressOutputLineRegex.IsUnknown() {
 		stringArgs := make([]string, 0)
-		if diags := model.SuppressOutputLineRegex.ElementsAs(ctx, &stringArgs, false); diags.HasError() {
+		diags := model.SuppressOutputLineRegex.ElementsAs(ctx, &stringArgs, false)
+		if diags.HasError() {
 			return nil, diags
 		}
 		applyOptions.SuppressOutputLineRegex = stringArgs
