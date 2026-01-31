@@ -57,7 +57,7 @@ type OptionsProvider interface {
 // HelmfileExecutor defines the interface for executing helmfile commands.
 type HelmfileExecutor interface {
 	// Init runs helmfile init to install dependencies
-	Init(ctx context.Context, options BaseGlobalOptionsProvider) (string, error)
+	Init(ctx context.Context, options GlobalOptionsProvider) (string, error)
 
 	// Apply runs helmfile apply/sync to deploy releases
 	Apply(

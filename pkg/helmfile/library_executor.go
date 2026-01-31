@@ -8,6 +8,7 @@ package helmfile
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -223,9 +224,22 @@ func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
 	return result, nil
 }
 
+func (p *HelmfileLibraryExecutor) MergeEnvVars(options CommonOptionsProvider) map[string]string {
+	mergedEnvVars := make(map[string]string)
+	// Start with global env vars
+	for k, v := range p.globalOptions.envVars {
+		mergedEnvVars[k] = v
+	}
+	// Override with options env vars
+	if options != nil {
+		maps.Copy(mergedEnvVars, options.EnvVars())
+	}
+	return mergedEnvVars
+}
+
 func (p *HelmfileLibraryExecutor) Init(
 	ctx context.Context,
-	options BaseGlobalOptionsProvider,
+	options GlobalOptionsProvider,
 ) (string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
@@ -251,6 +265,9 @@ func (p *HelmfileLibraryExecutor) Init(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
 
 	initOptions := &config.InitOptions{
 		Force: true,
@@ -279,6 +296,9 @@ func (p *HelmfileLibraryExecutor) Apply(
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
 
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
+
 	applyOptionsImpl := config.NewApplyImpl(globalOptions, applyOptions)
 
 	helmfileApp := app.New(applyOptionsImpl)
@@ -301,6 +321,10 @@ func (p *HelmfileLibraryExecutor) Diff(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
+
 	diffOptionsImpl := config.NewDiffImpl(globalOptions, diffOptions)
 	helmfileApp := app.New(diffOptionsImpl)
 
@@ -322,6 +346,10 @@ func (p *HelmfileLibraryExecutor) Template(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
+
 	templateOptionsImpl := config.NewTemplateImpl(globalOptions, templateOptions)
 	helmfileApp := app.New(templateOptionsImpl)
 
@@ -343,6 +371,10 @@ func (p *HelmfileLibraryExecutor) Destroy(
 	if err != nil {
 		return "", fmt.Errorf("error performing init: %w", err)
 	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
+
 	destroyOptionsImpl := config.NewDestroyImpl(globalOptions, destroyOptions)
 	helmfileApp := app.New(destroyOptionsImpl)
 
@@ -365,6 +397,9 @@ func (p *HelmfileLibraryExecutor) Build(
 	if err != nil {
 		return "", fmt.Errorf("error creating global options: %w", err)
 	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
 
 	buildImpl := config.NewBuildImpl(globalImpl, &config.BuildOptions{
 		EmbedValues: embedValues,

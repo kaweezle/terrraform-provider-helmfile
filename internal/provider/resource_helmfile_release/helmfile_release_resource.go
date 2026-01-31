@@ -11,7 +11,7 @@ import (
 	"github.com/kaweezle/terraform-provider-helmfile/internal/provider/provider_helmfile"
 )
 
-var _ resource.Resource = &HelmfileReleaseResource{}
+var _ resource.ResourceWithConfigure = &HelmfileReleaseResource{}
 
 type HelmfileReleaseResource struct {
 	provider *provider_helmfile.HelmfileProvider
@@ -74,6 +74,12 @@ func (r *HelmfileReleaseResource) Create(
 		return
 	}
 	// TODO: Implement the logic to create the Helmfile release using r.provider
+	// Steps (To be completed):
+	// 1. Make a build --embed-values call to helmfile with the relevant helmfile and environment and
+	//    create a sha256 hash of the output
+	// 2. Make an apply call to helmfile with the relevant helmfile and environment to ensure the release is
+	//    created/updated
+	// 3. Store the hash in the state to detect future changes
 
 	// Set the state
 	diags = resp.State.Set(ctx, &data)
