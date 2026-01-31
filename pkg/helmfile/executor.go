@@ -90,6 +90,9 @@ type HelmfileExecutor interface {
 	// Build runs helmfile build to validate configuration
 	Build(ctx context.Context, options OptionsProvider, embedValues bool) (string, string, error)
 
+	// List runs helmfile list to list releases
+	List(ctx context.Context, options OptionsProvider, skipCharts bool) (string, string, error)
+
 	// Version returns the helmfile version
 	Version(ctx context.Context) (string, string, error)
 }

@@ -77,9 +77,10 @@ func (r *HelmfileReleaseResource) Create(
 	// Steps (To be completed):
 	// 1. Make a build --embed-values call to helmfile with the relevant helmfile and environment and
 	//    create a sha256 hash of the output
-	// 2. Make an apply call to helmfile with the relevant helmfile and environment to ensure the release is
+	// 2. Make a list in order to list releases
+	// 3. Make an apply call to helmfile with the relevant helmfile and environment to ensure the release is
 	//    created/updated
-	// 3. Store the hash in the state to detect future changes
+	// 4. Store the hash in the state to detect future changes
 
 	// Set the state
 	diags = resp.State.Set(ctx, &data)

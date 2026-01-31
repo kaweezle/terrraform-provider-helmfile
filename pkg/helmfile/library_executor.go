@@ -388,6 +388,21 @@ func (p *HelmfileLibraryExecutor) Build(
 	})
 }
 
+func (p *HelmfileLibraryExecutor) List(
+	ctx context.Context,
+	options OptionsProvider,
+	skipCharts bool,
+) (string, string, error) {
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		listImpl := config.NewListImpl(gi, &config.ListOptions{
+			SkipCharts: skipCharts,
+			Output:     "json",
+		})
+		helmfileApp := app.New(listImpl)
+		return helmfileApp.ListReleases(listImpl)
+	})
+}
+
 func (p *HelmfileLibraryExecutor) Version(_ context.Context) (string, string, error) {
 	return version.Version(), "", nil
 }
