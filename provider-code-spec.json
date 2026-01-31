@@ -231,7 +231,7 @@
             }
           },
           {
-            "name": "selector",
+            "name": "selectors",
             "list": {
               "element_type": {
                 "string": {}
@@ -242,9 +242,12 @@
           },
           {
             "name": "args",
-            "string": {
+            "list": {
               "description": "Pass args to helm exec.",
-              "computed_optional_required": "optional"
+              "computed_optional_required": "optional",
+              "element_type": {
+                "string": {}
+              }
             }
           },
           {
@@ -529,7 +532,7 @@
             }
           },
           {
-            "name": "state_values_file",
+            "name": "state_values_files",
             "list": {
               "element_type": {
                 "string": {}
@@ -540,7 +543,7 @@
           },
           {
             "name": "state_values_set",
-            "list": {
+            "map": {
               "element_type": {
                 "string": {}
               },
@@ -556,6 +559,165 @@
               },
               "computed_optional_required": "optional",
               "description": "Set state STRING values on the command line. Used to override .Values within the helmfile template."
+            }
+          },
+          {
+            "name": "enforce_needs_are_installed",
+            "bool": {
+              "description": "When using --selector/-l, enforce that the selected releases' needs are also installed.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "wait_retries",
+            "int64": {
+              "description": "Override helmDefaults.waitRetries setting 'helm upgrade --install --wait --wait-retries'.",
+              "computed_optional_required": "optional"
+            }
+          },
+          {
+            "name": "env_vars",
+            "map": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "optional",
+              "description": "Environment variables to set for helmfile operations."
+            }
+          },
+          {
+            "name": "overrides",
+            "single_nested": {
+              "description": "Provider override attributes",
+              "computed_optional_required": "optional",
+              "attributes": [
+                {
+                  "name": "disable_force_update",
+                  "bool": {
+                    "description": "do not force helm repos to update when executing \"helm repo add\"",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "enforce_plugin_verification",
+                  "bool": {
+                    "description": "Enforce plugin verification for Helm.",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "helm_binary_path",
+                  "string": {
+                    "description": "Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "helm_oci_plain_http",
+                  "bool": {
+                    "description": "allow using plain HTTP when pulling charts from OCI registries",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "kustomize_binary_path",
+                  "string": {
+                    "description": "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "skip_deps",
+                  "bool": {
+                    "description": "skip running \"helm repo update\" and \"helm dependency build\"",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "skip_refresh",
+                  "bool": {
+                    "description": "skip running 'helmfile repos' before applying any helmfile operations.",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "strip_args_values_on_exit_error",
+                  "bool": {
+                    "description": "Strip the potential secret values of the helm command args contained in a helmfile error message (default true)",
+                    "computed_optional_required": "optional"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "sha256_checksum",
+            "string": {
+              "description": "The SHA256 checksum of the Helmfile release.",
+              "computed_optional_required": "computed_optional"
+            }
+          },
+          {
+            "name": "releases_list",
+            "list_nested": {
+              "description": "List of releases",
+              "computed_optional_required": "computed_optional",
+              "nested_object": {
+                "attributes": [
+                  {
+                    "name": "name",
+                    "string": {
+                      "description": "The name of the Helm release.",
+                      "computed_optional_required": "required"
+                    }
+                  },
+                  {
+                    "name": "namespace",
+                    "string": {
+                      "description": "The namespace of the Helm release.",
+                      "computed_optional_required": "required"
+                    }
+                  },
+                  {
+                    "name": "chart",
+                    "string": {
+                      "description": "The chart of the Helm release.",
+                      "computed_optional_required": "required"
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "map": {
+                      "element_type": {
+                        "string": {}
+                      },
+                      "description": "The labels of the Helm release.",
+                      "computed_optional_required": "optional"
+                    }
+                  },
+                  {
+                    "name": "version",
+                    "string": {
+                      "description": "The version of the Helm release.",
+                      "computed_optional_required": "optional"
+                    }
+                  },
+                  {
+                    "name": "enabled",
+                    "bool": {
+                      "description": "Is the Helm release enabled.",
+                      "computed_optional_required": "required"
+                    }
+                  },
+                  {
+                    "name": "installed",
+                    "bool": {
+                      "description": "Is the Helm release to be installed.",
+                      "computed_optional_required": "required"
+                    }
+                  }
+                ]
+              }
             }
           }
         ]

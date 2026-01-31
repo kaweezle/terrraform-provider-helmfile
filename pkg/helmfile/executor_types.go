@@ -3,6 +3,15 @@
 
 package helmfile
 
+var (
+	_ CommonOptionsProvider       = (*CommonOptions)(nil)
+	_ BaseGlobalOptionsProvider   = (*BaseGlobalOptions)(nil)
+	_ GlobalOptionsProvider       = (*GlobalOptions)(nil)
+	_ BaseResourceOptionsProvider = (*BaseResourceOptions)(nil)
+	_ ResourceOptionsProvider     = (*ResourceOptions)(nil)
+	_ OptionsProvider             = (*Options)(nil)
+)
+
 // CommonOptions implements CommonOptionsProvider.
 type CommonOptions struct {
 	kubeconfig  string
@@ -298,6 +307,56 @@ func (o *BaseResourceOptions) CopyFrom(from BaseResourceOptionsProvider) {
 	o.stateValuesFiles = from.StateValuesFiles()
 }
 
+// WithArgs sets the args.
+func (o *BaseResourceOptions) WithArgs(args string) *BaseResourceOptions {
+	o.args = args
+	return o
+}
+
+// WithFileOrDir sets the file or directory path.
+func (o *BaseResourceOptions) WithFileOrDir(fileOrDir string) *BaseResourceOptions {
+	o.fileOrDir = fileOrDir
+	return o
+}
+
+// WithKubeContext sets the kubernetes context.
+func (o *BaseResourceOptions) WithKubeContext(kubeContext string) *BaseResourceOptions {
+	o.kubeContext = kubeContext
+	return o
+}
+
+// WithNamespace sets the namespace.
+func (o *BaseResourceOptions) WithNamespace(namespace string) *BaseResourceOptions {
+	o.namespace = namespace
+	return o
+}
+
+// WithChart sets the chart name or path.
+func (o *BaseResourceOptions) WithChart(chart string) *BaseResourceOptions {
+	o.chart = chart
+	return o
+}
+
+// WithSelectors sets the release selectors.
+func (o *BaseResourceOptions) WithSelectors(selectors []string) *BaseResourceOptions {
+	o.selectors = selectors
+	return o
+}
+
+// WithStateValuesSet sets the state values.
+func (o *BaseResourceOptions) WithStateValuesSet(
+	stateValuesSet map[string]any,
+) *BaseResourceOptions {
+	o.stateValuesSet = stateValuesSet
+	return o
+}
+
+// WithStateValuesFiles sets the state values files.
+func (o *BaseResourceOptions) WithStateValuesFiles(stateValuesFiles []string) *BaseResourceOptions {
+	o.stateValuesFiles = stateValuesFiles
+	return o
+}
+
 // NewBaseResourceOptions creates BaseResourceOptions from a provider.
 func NewBaseResourceOptions(from BaseResourceOptionsProvider) BaseResourceOptions {
 	opts := BaseResourceOptions{}
@@ -324,6 +383,30 @@ func (o *ResourceOptions) CopyFrom(from ResourceOptionsProvider) {
 // NewResourceOptions creates ResourceOptions from a provider.
 func NewResourceOptions(from ResourceOptionsProvider) ResourceOptions {
 	opts := ResourceOptions{}
+	opts.CopyFrom(from)
+	return opts
+}
+
+// CopyFrom copies resource options from a provider.
+type Options struct {
+	CommonOptions
+	BaseGlobalOptions
+	BaseResourceOptions
+}
+
+// CopyFrom copies options from a provider.
+func (o *Options) CopyFrom(from OptionsProvider) {
+	if from == nil {
+		return
+	}
+	o.CommonOptions.CopyFrom(from)
+	o.BaseGlobalOptions.CopyFrom(from)
+	o.BaseResourceOptions.CopyFrom(from)
+}
+
+// NewOptions creates Options from a provider.
+func NewOptions(from OptionsProvider) Options {
+	opts := Options{}
 	opts.CopyFrom(from)
 	return opts
 }

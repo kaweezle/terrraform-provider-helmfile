@@ -10,3 +10,5 @@ releases:
     set:
       - name: rbac.create
         value: false
+      # - name: server.global.scrape_interval
+      #   value: 15s

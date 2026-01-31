@@ -9,6 +9,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.29.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/helmfile/helmfile v1.2.3
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 	helm.sh/helm/v3 v3.19.4
 	helm.sh/helm/v4 v4.0.4

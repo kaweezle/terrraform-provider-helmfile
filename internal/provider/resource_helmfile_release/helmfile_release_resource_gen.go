@@ -4,9 +4,15 @@ package resource_helmfile_release
 
 import (
 	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/kaweezle/terraform-provider-helmfile/internal/provider/utils"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 )
@@ -19,7 +25,8 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Do not exit with an error code if the provided selector has no matching releases.",
 				MarkdownDescription: "Do not exit with an error code if the provided selector has no matching releases.",
 			},
-			"args": schema.StringAttribute{
+			"args": schema.ListAttribute{
+				ElementType:         types.StringType,
 				Optional:            true,
 				Description:         "Pass args to helm exec.",
 				MarkdownDescription: "Pass args to helm exec.",
@@ -58,6 +65,17 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "Pass args to helm helm-diff.",
 				MarkdownDescription: "Pass args to helm helm-diff.",
+			},
+			"enforce_needs_are_installed": schema.BoolAttribute{
+				Optional:            true,
+				Description:         "When using --selector/-l, enforce that the selected releases' needs are also installed.",
+				MarkdownDescription: "When using --selector/-l, enforce that the selected releases' needs are also installed.",
+			},
+			"env_vars": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				Description:         "Environment variables to set for helmfile operations.",
+				MarkdownDescription: "Environment variables to set for helmfile operations.",
 			},
 			"environment": schema.StringAttribute{
 				Optional:            true,
@@ -127,6 +145,58 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Output format for diff plugin.",
 				MarkdownDescription: "Output format for diff plugin.",
 			},
+			"overrides": schema.SingleNestedAttribute{
+				Attributes: map[string]schema.Attribute{
+					"disable_force_update": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "do not force helm repos to update when executing \"helm repo add\"",
+						MarkdownDescription: "do not force helm repos to update when executing \"helm repo add\"",
+					},
+					"enforce_plugin_verification": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "Enforce plugin verification for Helm.",
+						MarkdownDescription: "Enforce plugin verification for Helm.",
+					},
+					"helm_binary_path": schema.StringAttribute{
+						Optional:            true,
+						Description:         "Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.",
+						MarkdownDescription: "Path to the helm binary. If not set, the provider will look for 'helm' in the system PATH.",
+					},
+					"helm_oci_plain_http": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "allow using plain HTTP when pulling charts from OCI registries",
+						MarkdownDescription: "allow using plain HTTP when pulling charts from OCI registries",
+					},
+					"kustomize_binary_path": schema.StringAttribute{
+						Optional:            true,
+						Description:         "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
+						MarkdownDescription: "Path to the kustomize binary. If not set, the provider will look for 'kustomize' in the system PATH.",
+					},
+					"skip_deps": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "skip running \"helm repo update\" and \"helm dependency build\"",
+						MarkdownDescription: "skip running \"helm repo update\" and \"helm dependency build\"",
+					},
+					"skip_refresh": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "skip running 'helmfile repos' before applying any helmfile operations.",
+						MarkdownDescription: "skip running 'helmfile repos' before applying any helmfile operations.",
+					},
+					"strip_args_values_on_exit_error": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "Strip the potential secret values of the helm command args contained in a helmfile error message (default true)",
+						MarkdownDescription: "Strip the potential secret values of the helm command args contained in a helmfile error message (default true)",
+					},
+				},
+				CustomType: OverridesType{
+					ObjectType: types.ObjectType{
+						AttrTypes: OverridesValue{}.AttributeTypes(ctx),
+					},
+				},
+				Optional:            true,
+				Description:         "Provider override attributes",
+				MarkdownDescription: "Provider override attributes",
+			},
 			"post_renderer": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Pass --post-renderer to 'helm template' or 'helm upgrade --install'.",
@@ -138,6 +208,57 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Pass --post-renderer-args to 'helm template' or 'helm upgrade --install'.",
 				MarkdownDescription: "Pass --post-renderer-args to 'helm template' or 'helm upgrade --install'.",
 			},
+			"releases_list": schema.ListNestedAttribute{
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"chart": schema.StringAttribute{
+							Required:            true,
+							Description:         "The chart of the Helm release.",
+							MarkdownDescription: "The chart of the Helm release.",
+						},
+						"enabled": schema.BoolAttribute{
+							Required:            true,
+							Description:         "Is the Helm release enabled.",
+							MarkdownDescription: "Is the Helm release enabled.",
+						},
+						"installed": schema.BoolAttribute{
+							Required:            true,
+							Description:         "Is the Helm release to be installed.",
+							MarkdownDescription: "Is the Helm release to be installed.",
+						},
+						"labels": schema.MapAttribute{
+							ElementType:         types.StringType,
+							Optional:            true,
+							Description:         "The labels of the Helm release.",
+							MarkdownDescription: "The labels of the Helm release.",
+						},
+						"name": schema.StringAttribute{
+							Required:            true,
+							Description:         "The name of the Helm release.",
+							MarkdownDescription: "The name of the Helm release.",
+						},
+						"namespace": schema.StringAttribute{
+							Required:            true,
+							Description:         "The namespace of the Helm release.",
+							MarkdownDescription: "The namespace of the Helm release.",
+						},
+						"version": schema.StringAttribute{
+							Optional:            true,
+							Description:         "The version of the Helm release.",
+							MarkdownDescription: "The version of the Helm release.",
+						},
+					},
+					CustomType: ReleasesListType{
+						ObjectType: types.ObjectType{
+							AttrTypes: ReleasesListValue{}.AttributeTypes(ctx),
+						},
+					},
+				},
+				Optional:            true,
+				Computed:            true,
+				Description:         "List of releases",
+				MarkdownDescription: "List of releases",
+			},
 			"reset_values": schema.BoolAttribute{
 				Optional:            true,
 				Description:         "Override helmDefaults.reuseValues 'helm upgrade --install --reset-values'.",
@@ -148,7 +269,7 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Override helmDefaults.reuseValues 'helm upgrade --install --reuse-values'.",
 				MarkdownDescription: "Override helmDefaults.reuseValues 'helm upgrade --install --reuse-values'.",
 			},
-			"selector": schema.ListAttribute{
+			"selectors": schema.ListAttribute{
 				ElementType:         types.StringType,
 				Optional:            true,
 				Description:         "Only run using the releases that match labels. Labels can take the form of foo=bar or foo!=bar.",
@@ -159,6 +280,12 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "Additional values to be merged into the helm command --set flag.",
 				MarkdownDescription: "Additional values to be merged into the helm command --set flag.",
+			},
+			"sha256_checksum": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "The SHA256 checksum of the Helmfile release.",
+				MarkdownDescription: "The SHA256 checksum of the Helmfile release.",
 			},
 			"show_secrets": schema.BoolAttribute{
 				Optional:            true,
@@ -190,13 +317,13 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Pass --skip-schema-validation to 'helm template' or 'helm upgrade --install'.",
 				MarkdownDescription: "Pass --skip-schema-validation to 'helm template' or 'helm upgrade --install'.",
 			},
-			"state_values_file": schema.ListAttribute{
+			"state_values_files": schema.ListAttribute{
 				ElementType:         types.StringType,
 				Optional:            true,
 				Description:         "Specify state values in a YAML file. Used to override .Values within the helmfile template.",
 				MarkdownDescription: "Specify state values in a YAML file. Used to override .Values within the helmfile template.",
 			},
-			"state_values_set": schema.ListAttribute{
+			"state_values_set": schema.MapAttribute{
 				ElementType:         types.StringType,
 				Optional:            true,
 				Description:         "Set state values on the command line. Used to override .Values within the helmfile template.",
@@ -271,58 +398,1464 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Override helmDefaults.waitForJobs setting 'helm upgrade --install --wait-for-jobs'.",
 				MarkdownDescription: "Override helmDefaults.waitForJobs setting 'helm upgrade --install --wait-for-jobs'.",
 			},
+			"wait_retries": schema.Int64Attribute{
+				Optional:            true,
+				Description:         "Override helmDefaults.waitRetries setting 'helm upgrade --install --wait --wait-retries'.",
+				MarkdownDescription: "Override helmDefaults.waitRetries setting 'helm upgrade --install --wait --wait-retries'.",
+			},
 		},
 	}
 }
 
 type HelmfileReleaseModel struct {
-	AllowNoMatchingRelease  types.Bool   `tfsdk:"allow_no_matching_release"`
-	Args                    types.String `tfsdk:"args"`
-	Cascade                 types.String `tfsdk:"cascade"`
-	Chart                   types.String `tfsdk:"chart"`
-	Concurrency             types.Int64  `tfsdk:"concurrency"`
-	Context                 types.Int64  `tfsdk:"context"`
-	Debug                   types.Bool   `tfsdk:"debug"`
-	DetailedExitcode        types.Bool   `tfsdk:"detailed_exitcode"`
-	DiffArgs                types.String `tfsdk:"diff_args"`
-	Environment             types.String `tfsdk:"environment"`
-	FileOrPath              types.String `tfsdk:"file_or_path"`
-	HideNotes               types.Bool   `tfsdk:"hide_notes"`
-	IncludeNeeds            types.Bool   `tfsdk:"include_needs"`
-	IncludeTests            types.Bool   `tfsdk:"include_tests"`
-	IncludeTransitiveNeeds  types.Bool   `tfsdk:"include_transitive_needs"`
-	KubeContext             types.String `tfsdk:"kube_context"`
-	Kubeconfig              types.String `tfsdk:"kubeconfig"`
-	LogLevel                types.String `tfsdk:"log_level"`
-	Name                    types.String `tfsdk:"name"`
-	Namespace               types.String `tfsdk:"namespace"`
-	NoHooks                 types.Bool   `tfsdk:"no_hooks"`
-	Output                  types.String `tfsdk:"output"`
-	PostRenderer            types.String `tfsdk:"post_renderer"`
-	PostRendererArgs        types.List   `tfsdk:"post_renderer_args"`
-	ResetValues             types.Bool   `tfsdk:"reset_values"`
-	ReuseValues             types.Bool   `tfsdk:"reuse_values"`
-	Selector                types.List   `tfsdk:"selector"`
-	Set                     types.List   `tfsdk:"set"`
-	ShowSecrets             types.Bool   `tfsdk:"show_secrets"`
-	SkipCleanup             types.Bool   `tfsdk:"skip_cleanup"`
-	SkipCrds                types.Bool   `tfsdk:"skip_crds"`
-	SkipDiffOnInstall       types.Bool   `tfsdk:"skip_diff_on_install"`
-	SkipNeeds               types.Bool   `tfsdk:"skip_needs"`
-	SkipSchemaValidation    types.Bool   `tfsdk:"skip_schema_validation"`
-	StateValuesFile         types.List   `tfsdk:"state_values_file"`
-	StateValuesSet          types.List   `tfsdk:"state_values_set"`
-	StateValuesSetString    types.List   `tfsdk:"state_values_set_string"`
-	StripTrailingCr         types.Bool   `tfsdk:"strip_trailing_cr"`
-	Suppress                types.List   `tfsdk:"suppress"`
-	SuppressDiff            types.Bool   `tfsdk:"suppress_diff"`
-	SuppressOutputLineRegex types.List   `tfsdk:"suppress_output_line_regex"`
-	SuppressSecrets         types.Bool   `tfsdk:"suppress_secrets"`
-	SyncArgs                types.String `tfsdk:"sync_args"`
-	SyncReleaseLabels       types.Bool   `tfsdk:"sync_release_labels"`
-	TakeOwnership           types.Bool   `tfsdk:"take_ownership"`
-	Validate                types.Bool   `tfsdk:"validate"`
-	Values                  types.List   `tfsdk:"values"`
-	Wait                    types.Bool   `tfsdk:"wait"`
-	WaitForJobs             types.Bool   `tfsdk:"wait_for_jobs"`
+	AllowNoMatchingRelease   types.Bool     `tfsdk:"allow_no_matching_release"`
+	Args                     types.List     `tfsdk:"args"`
+	Cascade                  types.String   `tfsdk:"cascade"`
+	Chart                    types.String   `tfsdk:"chart"`
+	Concurrency              types.Int64    `tfsdk:"concurrency"`
+	Context                  types.Int64    `tfsdk:"context"`
+	Debug                    types.Bool     `tfsdk:"debug"`
+	DetailedExitcode         types.Bool     `tfsdk:"detailed_exitcode"`
+	DiffArgs                 types.String   `tfsdk:"diff_args"`
+	EnforceNeedsAreInstalled types.Bool     `tfsdk:"enforce_needs_are_installed"`
+	EnvVars                  types.Map      `tfsdk:"env_vars"`
+	Environment              types.String   `tfsdk:"environment"`
+	FileOrPath               types.String   `tfsdk:"file_or_path"`
+	HideNotes                types.Bool     `tfsdk:"hide_notes"`
+	IncludeNeeds             types.Bool     `tfsdk:"include_needs"`
+	IncludeTests             types.Bool     `tfsdk:"include_tests"`
+	IncludeTransitiveNeeds   types.Bool     `tfsdk:"include_transitive_needs"`
+	KubeContext              types.String   `tfsdk:"kube_context"`
+	Kubeconfig               types.String   `tfsdk:"kubeconfig"`
+	LogLevel                 types.String   `tfsdk:"log_level"`
+	Name                     types.String   `tfsdk:"name"`
+	Namespace                types.String   `tfsdk:"namespace"`
+	NoHooks                  types.Bool     `tfsdk:"no_hooks"`
+	Output                   types.String   `tfsdk:"output"`
+	Overrides                OverridesValue `tfsdk:"overrides"`
+	PostRenderer             types.String   `tfsdk:"post_renderer"`
+	PostRendererArgs         types.List     `tfsdk:"post_renderer_args"`
+	ReleasesList             types.List     `tfsdk:"releases_list"`
+	ResetValues              types.Bool     `tfsdk:"reset_values"`
+	ReuseValues              types.Bool     `tfsdk:"reuse_values"`
+	Selectors                types.List     `tfsdk:"selectors"`
+	Set                      types.List     `tfsdk:"set"`
+	Sha256Checksum           types.String   `tfsdk:"sha256_checksum"`
+	ShowSecrets              types.Bool     `tfsdk:"show_secrets"`
+	SkipCleanup              types.Bool     `tfsdk:"skip_cleanup"`
+	SkipCrds                 types.Bool     `tfsdk:"skip_crds"`
+	SkipDiffOnInstall        types.Bool     `tfsdk:"skip_diff_on_install"`
+	SkipNeeds                types.Bool     `tfsdk:"skip_needs"`
+	SkipSchemaValidation     types.Bool     `tfsdk:"skip_schema_validation"`
+	StateValuesFiles         types.List     `tfsdk:"state_values_files"`
+	StateValuesSet           types.Map      `tfsdk:"state_values_set"`
+	StateValuesSetString     types.List     `tfsdk:"state_values_set_string"`
+	StripTrailingCr          types.Bool     `tfsdk:"strip_trailing_cr"`
+	Suppress                 types.List     `tfsdk:"suppress"`
+	SuppressDiff             types.Bool     `tfsdk:"suppress_diff"`
+	SuppressOutputLineRegex  types.List     `tfsdk:"suppress_output_line_regex"`
+	SuppressSecrets          types.Bool     `tfsdk:"suppress_secrets"`
+	SyncArgs                 types.String   `tfsdk:"sync_args"`
+	SyncReleaseLabels        types.Bool     `tfsdk:"sync_release_labels"`
+	TakeOwnership            types.Bool     `tfsdk:"take_ownership"`
+	Validate                 types.Bool     `tfsdk:"validate"`
+	Values                   types.List     `tfsdk:"values"`
+	Wait                     types.Bool     `tfsdk:"wait"`
+	WaitForJobs              types.Bool     `tfsdk:"wait_for_jobs"`
+	WaitRetries              types.Int64    `tfsdk:"wait_retries"`
+}
+
+var _ basetypes.ObjectTypable = OverridesType{}
+
+type OverridesType struct {
+	basetypes.ObjectType
+}
+
+func (t OverridesType) Equal(o attr.Type) bool {
+	other, ok := o.(OverridesType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t OverridesType) String() string {
+	return "OverridesType"
+}
+
+func (t OverridesType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributes := in.Attributes()
+
+	disableForceUpdateAttribute, ok := attributes["disable_force_update"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`disable_force_update is missing from object`)
+
+		return nil, diags
+	}
+
+	disableForceUpdateVal, ok := disableForceUpdateAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`disable_force_update expected to be basetypes.BoolValue, was: %T`, disableForceUpdateAttribute))
+	}
+
+	enforcePluginVerificationAttribute, ok := attributes["enforce_plugin_verification"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`enforce_plugin_verification is missing from object`)
+
+		return nil, diags
+	}
+
+	enforcePluginVerificationVal, ok := enforcePluginVerificationAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`enforce_plugin_verification expected to be basetypes.BoolValue, was: %T`, enforcePluginVerificationAttribute))
+	}
+
+	helmBinaryPathAttribute, ok := attributes["helm_binary_path"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`helm_binary_path is missing from object`)
+
+		return nil, diags
+	}
+
+	helmBinaryPathVal, ok := helmBinaryPathAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`helm_binary_path expected to be basetypes.StringValue, was: %T`, helmBinaryPathAttribute))
+	}
+
+	helmOciPlainHttpAttribute, ok := attributes["helm_oci_plain_http"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`helm_oci_plain_http is missing from object`)
+
+		return nil, diags
+	}
+
+	helmOciPlainHttpVal, ok := helmOciPlainHttpAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`helm_oci_plain_http expected to be basetypes.BoolValue, was: %T`, helmOciPlainHttpAttribute))
+	}
+
+	kustomizeBinaryPathAttribute, ok := attributes["kustomize_binary_path"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`kustomize_binary_path is missing from object`)
+
+		return nil, diags
+	}
+
+	kustomizeBinaryPathVal, ok := kustomizeBinaryPathAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`kustomize_binary_path expected to be basetypes.StringValue, was: %T`, kustomizeBinaryPathAttribute))
+	}
+
+	skipDepsAttribute, ok := attributes["skip_deps"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_deps is missing from object`)
+
+		return nil, diags
+	}
+
+	skipDepsVal, ok := skipDepsAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_deps expected to be basetypes.BoolValue, was: %T`, skipDepsAttribute))
+	}
+
+	skipRefreshAttribute, ok := attributes["skip_refresh"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_refresh is missing from object`)
+
+		return nil, diags
+	}
+
+	skipRefreshVal, ok := skipRefreshAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_refresh expected to be basetypes.BoolValue, was: %T`, skipRefreshAttribute))
+	}
+
+	stripArgsValuesOnExitErrorAttribute, ok := attributes["strip_args_values_on_exit_error"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`strip_args_values_on_exit_error is missing from object`)
+
+		return nil, diags
+	}
+
+	stripArgsValuesOnExitErrorVal, ok := stripArgsValuesOnExitErrorAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`strip_args_values_on_exit_error expected to be basetypes.BoolValue, was: %T`, stripArgsValuesOnExitErrorAttribute))
+	}
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return OverridesValue{
+		DisableForceUpdate:         disableForceUpdateVal,
+		EnforcePluginVerification:  enforcePluginVerificationVal,
+		HelmBinaryPath:             helmBinaryPathVal,
+		HelmOciPlainHttp:           helmOciPlainHttpVal,
+		KustomizeBinaryPath:        kustomizeBinaryPathVal,
+		SkipDeps:                   skipDepsVal,
+		SkipRefresh:                skipRefreshVal,
+		StripArgsValuesOnExitError: stripArgsValuesOnExitErrorVal,
+		state:                      attr.ValueStateKnown,
+	}, diags
+}
+
+func NewOverridesValueNull() OverridesValue {
+	return OverridesValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewOverridesValueUnknown() OverridesValue {
+	return OverridesValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewOverridesValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (OverridesValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing OverridesValue Attribute Value",
+				"While creating a OverridesValue value, a missing attribute value was detected. "+
+					"A OverridesValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("OverridesValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid OverridesValue Attribute Type",
+				"While creating a OverridesValue value, an invalid attribute value was detected. "+
+					"A OverridesValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("OverridesValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("OverridesValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra OverridesValue Attribute Value",
+				"While creating a OverridesValue value, an extra attribute value was detected. "+
+					"A OverridesValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra OverridesValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewOverridesValueUnknown(), diags
+	}
+
+	disableForceUpdateAttribute, ok := attributes["disable_force_update"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`disable_force_update is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	disableForceUpdateVal, ok := disableForceUpdateAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`disable_force_update expected to be basetypes.BoolValue, was: %T`, disableForceUpdateAttribute))
+	}
+
+	enforcePluginVerificationAttribute, ok := attributes["enforce_plugin_verification"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`enforce_plugin_verification is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	enforcePluginVerificationVal, ok := enforcePluginVerificationAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`enforce_plugin_verification expected to be basetypes.BoolValue, was: %T`, enforcePluginVerificationAttribute))
+	}
+
+	helmBinaryPathAttribute, ok := attributes["helm_binary_path"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`helm_binary_path is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	helmBinaryPathVal, ok := helmBinaryPathAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`helm_binary_path expected to be basetypes.StringValue, was: %T`, helmBinaryPathAttribute))
+	}
+
+	helmOciPlainHttpAttribute, ok := attributes["helm_oci_plain_http"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`helm_oci_plain_http is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	helmOciPlainHttpVal, ok := helmOciPlainHttpAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`helm_oci_plain_http expected to be basetypes.BoolValue, was: %T`, helmOciPlainHttpAttribute))
+	}
+
+	kustomizeBinaryPathAttribute, ok := attributes["kustomize_binary_path"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`kustomize_binary_path is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	kustomizeBinaryPathVal, ok := kustomizeBinaryPathAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`kustomize_binary_path expected to be basetypes.StringValue, was: %T`, kustomizeBinaryPathAttribute))
+	}
+
+	skipDepsAttribute, ok := attributes["skip_deps"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_deps is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	skipDepsVal, ok := skipDepsAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_deps expected to be basetypes.BoolValue, was: %T`, skipDepsAttribute))
+	}
+
+	skipRefreshAttribute, ok := attributes["skip_refresh"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_refresh is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	skipRefreshVal, ok := skipRefreshAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_refresh expected to be basetypes.BoolValue, was: %T`, skipRefreshAttribute))
+	}
+
+	stripArgsValuesOnExitErrorAttribute, ok := attributes["strip_args_values_on_exit_error"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`strip_args_values_on_exit_error is missing from object`)
+
+		return NewOverridesValueUnknown(), diags
+	}
+
+	stripArgsValuesOnExitErrorVal, ok := stripArgsValuesOnExitErrorAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`strip_args_values_on_exit_error expected to be basetypes.BoolValue, was: %T`, stripArgsValuesOnExitErrorAttribute))
+	}
+
+	if diags.HasError() {
+		return NewOverridesValueUnknown(), diags
+	}
+
+	return OverridesValue{
+		DisableForceUpdate:         disableForceUpdateVal,
+		EnforcePluginVerification:  enforcePluginVerificationVal,
+		HelmBinaryPath:             helmBinaryPathVal,
+		HelmOciPlainHttp:           helmOciPlainHttpVal,
+		KustomizeBinaryPath:        kustomizeBinaryPathVal,
+		SkipDeps:                   skipDepsVal,
+		SkipRefresh:                skipRefreshVal,
+		StripArgsValuesOnExitError: stripArgsValuesOnExitErrorVal,
+		state:                      attr.ValueStateKnown,
+	}, diags
+}
+
+func NewOverridesValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) OverridesValue {
+	object, diags := NewOverridesValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewOverridesValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t OverridesType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewOverridesValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewOverridesValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewOverridesValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewOverridesValueMust(OverridesValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t OverridesType) ValueType(ctx context.Context) attr.Value {
+	return OverridesValue{}
+}
+
+var _ basetypes.ObjectValuable = OverridesValue{}
+
+type OverridesValue struct {
+	DisableForceUpdate         basetypes.BoolValue   `tfsdk:"disable_force_update"`
+	EnforcePluginVerification  basetypes.BoolValue   `tfsdk:"enforce_plugin_verification"`
+	HelmBinaryPath             basetypes.StringValue `tfsdk:"helm_binary_path"`
+	HelmOciPlainHttp           basetypes.BoolValue   `tfsdk:"helm_oci_plain_http"`
+	KustomizeBinaryPath        basetypes.StringValue `tfsdk:"kustomize_binary_path"`
+	SkipDeps                   basetypes.BoolValue   `tfsdk:"skip_deps"`
+	SkipRefresh                basetypes.BoolValue   `tfsdk:"skip_refresh"`
+	StripArgsValuesOnExitError basetypes.BoolValue   `tfsdk:"strip_args_values_on_exit_error"`
+	state                      attr.ValueState
+}
+
+func (v OverridesValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 8)
+
+	var val tftypes.Value
+	var err error
+
+	attrTypes["disable_force_update"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["enforce_plugin_verification"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["helm_binary_path"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["helm_oci_plain_http"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["kustomize_binary_path"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["skip_deps"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["skip_refresh"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["strip_args_values_on_exit_error"] = basetypes.BoolType{}.TerraformType(ctx)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 8)
+
+		val, err = v.DisableForceUpdate.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["disable_force_update"] = val
+
+		val, err = v.EnforcePluginVerification.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["enforce_plugin_verification"] = val
+
+		val, err = v.HelmBinaryPath.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["helm_binary_path"] = val
+
+		val, err = v.HelmOciPlainHttp.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["helm_oci_plain_http"] = val
+
+		val, err = v.KustomizeBinaryPath.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["kustomize_binary_path"] = val
+
+		val, err = v.SkipDeps.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["skip_deps"] = val
+
+		val, err = v.SkipRefresh.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["skip_refresh"] = val
+
+		val, err = v.StripArgsValuesOnExitError.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["strip_args_values_on_exit_error"] = val
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v OverridesValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v OverridesValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v OverridesValue) String() string {
+	return "OverridesValue"
+}
+
+func (v OverridesValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{
+		"disable_force_update":            basetypes.BoolType{},
+		"enforce_plugin_verification":     basetypes.BoolType{},
+		"helm_binary_path":                basetypes.StringType{},
+		"helm_oci_plain_http":             basetypes.BoolType{},
+		"kustomize_binary_path":           basetypes.StringType{},
+		"skip_deps":                       basetypes.BoolType{},
+		"skip_refresh":                    basetypes.BoolType{},
+		"strip_args_values_on_exit_error": basetypes.BoolType{},
+	}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{
+			"disable_force_update":            v.DisableForceUpdate,
+			"enforce_plugin_verification":     v.EnforcePluginVerification,
+			"helm_binary_path":                v.HelmBinaryPath,
+			"helm_oci_plain_http":             v.HelmOciPlainHttp,
+			"kustomize_binary_path":           v.KustomizeBinaryPath,
+			"skip_deps":                       v.SkipDeps,
+			"skip_refresh":                    v.SkipRefresh,
+			"strip_args_values_on_exit_error": v.StripArgsValuesOnExitError,
+		})
+
+	return objVal, diags
+}
+
+func (v OverridesValue) Equal(o attr.Value) bool {
+	other, ok := o.(OverridesValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	if !v.DisableForceUpdate.Equal(other.DisableForceUpdate) {
+		return false
+	}
+
+	if !v.EnforcePluginVerification.Equal(other.EnforcePluginVerification) {
+		return false
+	}
+
+	if !v.HelmBinaryPath.Equal(other.HelmBinaryPath) {
+		return false
+	}
+
+	if !v.HelmOciPlainHttp.Equal(other.HelmOciPlainHttp) {
+		return false
+	}
+
+	if !v.KustomizeBinaryPath.Equal(other.KustomizeBinaryPath) {
+		return false
+	}
+
+	if !v.SkipDeps.Equal(other.SkipDeps) {
+		return false
+	}
+
+	if !v.SkipRefresh.Equal(other.SkipRefresh) {
+		return false
+	}
+
+	if !v.StripArgsValuesOnExitError.Equal(other.StripArgsValuesOnExitError) {
+		return false
+	}
+
+	return true
+}
+
+func (v OverridesValue) Type(ctx context.Context) attr.Type {
+	return OverridesType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v OverridesValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{
+		"disable_force_update":            basetypes.BoolType{},
+		"enforce_plugin_verification":     basetypes.BoolType{},
+		"helm_binary_path":                basetypes.StringType{},
+		"helm_oci_plain_http":             basetypes.BoolType{},
+		"kustomize_binary_path":           basetypes.StringType{},
+		"skip_deps":                       basetypes.BoolType{},
+		"skip_refresh":                    basetypes.BoolType{},
+		"strip_args_values_on_exit_error": basetypes.BoolType{},
+	}
+}
+
+var _ basetypes.ObjectTypable = ReleasesListType{}
+
+type ReleasesListType struct {
+	basetypes.ObjectType
+}
+
+func (t ReleasesListType) Equal(o attr.Type) bool {
+	other, ok := o.(ReleasesListType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t ReleasesListType) String() string {
+	return "ReleasesListType"
+}
+
+func (t ReleasesListType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributes := in.Attributes()
+
+	chartAttribute, ok := attributes["chart"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`chart is missing from object`)
+
+		return nil, diags
+	}
+
+	chartVal, ok := chartAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`chart expected to be basetypes.StringValue, was: %T`, chartAttribute))
+	}
+
+	enabledAttribute, ok := attributes["enabled"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`enabled is missing from object`)
+
+		return nil, diags
+	}
+
+	enabledVal, ok := enabledAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`enabled expected to be basetypes.BoolValue, was: %T`, enabledAttribute))
+	}
+
+	installedAttribute, ok := attributes["installed"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`installed is missing from object`)
+
+		return nil, diags
+	}
+
+	installedVal, ok := installedAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`installed expected to be basetypes.BoolValue, was: %T`, installedAttribute))
+	}
+
+	labelsAttribute, ok := attributes["labels"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`labels is missing from object`)
+
+		return nil, diags
+	}
+
+	labelsVal, ok := labelsAttribute.(basetypes.MapValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`labels expected to be basetypes.MapValue, was: %T`, labelsAttribute))
+	}
+
+	nameAttribute, ok := attributes["name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`name is missing from object`)
+
+		return nil, diags
+	}
+
+	nameVal, ok := nameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`name expected to be basetypes.StringValue, was: %T`, nameAttribute))
+	}
+
+	namespaceAttribute, ok := attributes["namespace"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`namespace is missing from object`)
+
+		return nil, diags
+	}
+
+	namespaceVal, ok := namespaceAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`namespace expected to be basetypes.StringValue, was: %T`, namespaceAttribute))
+	}
+
+	versionAttribute, ok := attributes["version"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`version is missing from object`)
+
+		return nil, diags
+	}
+
+	versionVal, ok := versionAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`version expected to be basetypes.StringValue, was: %T`, versionAttribute))
+	}
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return ReleasesListValue{
+		Chart:     chartVal,
+		Enabled:   enabledVal,
+		Installed: installedVal,
+		Labels:    labelsVal,
+		Name:      nameVal,
+		Namespace: namespaceVal,
+		Version:   versionVal,
+		state:     attr.ValueStateKnown,
+	}, diags
+}
+
+func NewReleasesListValueNull() ReleasesListValue {
+	return ReleasesListValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewReleasesListValueUnknown() ReleasesListValue {
+	return ReleasesListValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewReleasesListValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (ReleasesListValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing ReleasesListValue Attribute Value",
+				"While creating a ReleasesListValue value, a missing attribute value was detected. "+
+					"A ReleasesListValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("ReleasesListValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid ReleasesListValue Attribute Type",
+				"While creating a ReleasesListValue value, an invalid attribute value was detected. "+
+					"A ReleasesListValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("ReleasesListValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("ReleasesListValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra ReleasesListValue Attribute Value",
+				"While creating a ReleasesListValue value, an extra attribute value was detected. "+
+					"A ReleasesListValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra ReleasesListValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	chartAttribute, ok := attributes["chart"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`chart is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	chartVal, ok := chartAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`chart expected to be basetypes.StringValue, was: %T`, chartAttribute))
+	}
+
+	enabledAttribute, ok := attributes["enabled"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`enabled is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	enabledVal, ok := enabledAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`enabled expected to be basetypes.BoolValue, was: %T`, enabledAttribute))
+	}
+
+	installedAttribute, ok := attributes["installed"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`installed is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	installedVal, ok := installedAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`installed expected to be basetypes.BoolValue, was: %T`, installedAttribute))
+	}
+
+	labelsAttribute, ok := attributes["labels"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`labels is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	labelsVal, ok := labelsAttribute.(basetypes.MapValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`labels expected to be basetypes.MapValue, was: %T`, labelsAttribute))
+	}
+
+	nameAttribute, ok := attributes["name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`name is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	nameVal, ok := nameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`name expected to be basetypes.StringValue, was: %T`, nameAttribute))
+	}
+
+	namespaceAttribute, ok := attributes["namespace"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`namespace is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	namespaceVal, ok := namespaceAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`namespace expected to be basetypes.StringValue, was: %T`, namespaceAttribute))
+	}
+
+	versionAttribute, ok := attributes["version"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`version is missing from object`)
+
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	versionVal, ok := versionAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`version expected to be basetypes.StringValue, was: %T`, versionAttribute))
+	}
+
+	if diags.HasError() {
+		return NewReleasesListValueUnknown(), diags
+	}
+
+	return ReleasesListValue{
+		Chart:     chartVal,
+		Enabled:   enabledVal,
+		Installed: installedVal,
+		Labels:    labelsVal,
+		Name:      nameVal,
+		Namespace: namespaceVal,
+		Version:   versionVal,
+		state:     attr.ValueStateKnown,
+	}, diags
+}
+
+func NewReleasesListValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) ReleasesListValue {
+	object, diags := NewReleasesListValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewReleasesListValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t ReleasesListType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewReleasesListValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewReleasesListValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewReleasesListValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewReleasesListValueMust(ReleasesListValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t ReleasesListType) ValueType(ctx context.Context) attr.Value {
+	return ReleasesListValue{}
+}
+
+var _ basetypes.ObjectValuable = ReleasesListValue{}
+
+type ReleasesListValue struct {
+	Chart     basetypes.StringValue `tfsdk:"chart"`
+	Enabled   basetypes.BoolValue   `tfsdk:"enabled"`
+	Installed basetypes.BoolValue   `tfsdk:"installed"`
+	Labels    basetypes.MapValue    `tfsdk:"labels"`
+	Name      basetypes.StringValue `tfsdk:"name"`
+	Namespace basetypes.StringValue `tfsdk:"namespace"`
+	Version   basetypes.StringValue `tfsdk:"version"`
+	state     attr.ValueState
+}
+
+func (v ReleasesListValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 7)
+
+	var val tftypes.Value
+	var err error
+
+	attrTypes["chart"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["enabled"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["installed"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["labels"] = basetypes.MapType{
+		ElemType: types.StringType,
+	}.TerraformType(ctx)
+	attrTypes["name"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["namespace"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["version"] = basetypes.StringType{}.TerraformType(ctx)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 7)
+
+		val, err = v.Chart.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["chart"] = val
+
+		val, err = v.Enabled.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["enabled"] = val
+
+		val, err = v.Installed.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["installed"] = val
+
+		val, err = v.Labels.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["labels"] = val
+
+		val, err = v.Name.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["name"] = val
+
+		val, err = v.Namespace.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["namespace"] = val
+
+		val, err = v.Version.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["version"] = val
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v ReleasesListValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v ReleasesListValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v ReleasesListValue) String() string {
+	return "ReleasesListValue"
+}
+
+func (v ReleasesListValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	var labelsVal basetypes.MapValue
+	switch {
+	case v.Labels.IsUnknown():
+		labelsVal = types.MapUnknown(types.StringType)
+	case v.Labels.IsNull():
+		labelsVal = types.MapNull(types.StringType)
+	default:
+		var d diag.Diagnostics
+		labelsVal, d = types.MapValue(types.StringType, v.Labels.Elements())
+		diags.Append(d...)
+	}
+
+	if diags.HasError() {
+		return types.ObjectUnknown(map[string]attr.Type{
+			"chart":     basetypes.StringType{},
+			"enabled":   basetypes.BoolType{},
+			"installed": basetypes.BoolType{},
+			"labels": basetypes.MapType{
+				ElemType: types.StringType,
+			},
+			"name":      basetypes.StringType{},
+			"namespace": basetypes.StringType{},
+			"version":   basetypes.StringType{},
+		}), diags
+	}
+
+	attributeTypes := map[string]attr.Type{
+		"chart":     basetypes.StringType{},
+		"enabled":   basetypes.BoolType{},
+		"installed": basetypes.BoolType{},
+		"labels": basetypes.MapType{
+			ElemType: types.StringType,
+		},
+		"name":      basetypes.StringType{},
+		"namespace": basetypes.StringType{},
+		"version":   basetypes.StringType{},
+	}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{
+			"chart":     v.Chart,
+			"enabled":   v.Enabled,
+			"installed": v.Installed,
+			"labels":    labelsVal,
+			"name":      v.Name,
+			"namespace": v.Namespace,
+			"version":   v.Version,
+		})
+
+	return objVal, diags
+}
+
+func (v ReleasesListValue) Equal(o attr.Value) bool {
+	other, ok := o.(ReleasesListValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	if !v.Chart.Equal(other.Chart) {
+		return false
+	}
+
+	if !v.Enabled.Equal(other.Enabled) {
+		return false
+	}
+
+	if !v.Installed.Equal(other.Installed) {
+		return false
+	}
+
+	if !v.Labels.Equal(other.Labels) {
+		return false
+	}
+
+	if !v.Name.Equal(other.Name) {
+		return false
+	}
+
+	if !v.Namespace.Equal(other.Namespace) {
+		return false
+	}
+
+	if !v.Version.Equal(other.Version) {
+		return false
+	}
+
+	return true
+}
+
+func (v ReleasesListValue) Type(ctx context.Context) attr.Type {
+	return ReleasesListType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v ReleasesListValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{
+		"chart":     basetypes.StringType{},
+		"enabled":   basetypes.BoolType{},
+		"installed": basetypes.BoolType{},
+		"labels": basetypes.MapType{
+			ElemType: types.StringType,
+		},
+		"name":      basetypes.StringType{},
+		"namespace": basetypes.StringType{},
+		"version":   basetypes.StringType{},
+	}
 }
