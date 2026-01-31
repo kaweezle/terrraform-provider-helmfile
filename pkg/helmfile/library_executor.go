@@ -6,9 +6,12 @@
 package helmfile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"maps"
+	"os"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -240,25 +243,50 @@ func (p *HelmfileLibraryExecutor) Execute(
 	ctx context.Context,
 	options OptionsProvider,
 	fn func(context.Context, *config.GlobalImpl) error,
-) (string, error) {
+) (string, string, error) {
 	capture := NewOutputCapture(ctx)
 	logger := CreateCaptureLogger(capture)
 	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
 	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
+		return "", "", fmt.Errorf("error performing init: %w", err)
 	}
 
 	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
 	defer cleanup()
+
+	// Redirect also stdout
+	old := os.Stdout // keep backup of the real stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", "", fmt.Errorf("error creating pipe: %w", err)
+	}
+	os.Stdout = w
+
+	outC := make(chan string)
+	// copy the output in a separate goroutine so printing can't block indefinitely
+	go func() {
+		var buf bytes.Buffer
+		_, err := io.Copy(&buf, r)
+		if err != nil {
+			logger.Warnf("error copying stdout: %v", err)
+		}
+		outC <- buf.String()
+	}()
+
 	err = fn(ctx, globalOptions)
 
-	return capture.String(), err
+	if closeErr := w.Close(); closeErr != nil {
+		logger.Warnf("error closing pipe writer: %v", closeErr)
+	}
+	os.Stdout = old // restoring the real stdout
+	out := <-outC
+	return out, capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Init(
 	ctx context.Context,
 	options GlobalOptionsProvider,
-) (string, error) {
+) (string, string, error) {
 	var globalOptions OptionsProvider
 	if options == nil {
 		globalOptions = nil
@@ -294,7 +322,7 @@ func (p *HelmfileLibraryExecutor) Apply(
 	ctx context.Context,
 	options OptionsProvider,
 	applyOptions *config.ApplyOptions,
-) (string, error) {
+) (string, string, error) {
 	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
 		applyOptionsImpl := config.NewApplyImpl(gi, applyOptions)
 
@@ -309,7 +337,7 @@ func (p *HelmfileLibraryExecutor) Diff(
 	ctx context.Context,
 	options OptionsProvider,
 	diffOptions *config.DiffOptions,
-) (string, error) {
+) (string, string, error) {
 	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
 		diffOptionsImpl := config.NewDiffImpl(gi, diffOptions)
 
@@ -324,7 +352,7 @@ func (p *HelmfileLibraryExecutor) Template(
 	ctx context.Context,
 	options OptionsProvider,
 	templateOptions *config.TemplateOptions,
-) (string, error) {
+) (string, string, error) {
 	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
 		templateOptionsImpl := config.NewTemplateImpl(gi, templateOptions)
 		helmfileApp := app.New(templateOptionsImpl)
@@ -337,7 +365,7 @@ func (p *HelmfileLibraryExecutor) Destroy(
 	ctx context.Context,
 	options OptionsProvider,
 	destroyOptions *config.DestroyOptions,
-) (string, error) {
+) (string, string, error) {
 	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
 		destroyOptionsImpl := config.NewDestroyImpl(gi, destroyOptions)
 		helmfileApp := app.New(destroyOptionsImpl)
@@ -350,7 +378,7 @@ func (p *HelmfileLibraryExecutor) Build(
 	ctx context.Context,
 	options OptionsProvider,
 	embedValues bool,
-) (string, error) {
+) (string, string, error) {
 	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
 		buildImpl := config.NewBuildImpl(gi, &config.BuildOptions{
 			EmbedValues: embedValues,
@@ -360,6 +388,6 @@ func (p *HelmfileLibraryExecutor) Build(
 	})
 }
 
-func (p *HelmfileLibraryExecutor) Version(_ context.Context) (string, error) {
-	return version.Version(), nil
+func (p *HelmfileLibraryExecutor) Version(_ context.Context) (string, string, error) {
+	return version.Version(), "", nil
 }

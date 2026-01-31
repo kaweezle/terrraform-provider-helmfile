@@ -65,12 +65,13 @@ func (p *helmfileProvider) Configure(
 		return
 	}
 	if performInit {
-		output, err := providerInstance.Executor.Init(ctx, nil)
+		output, logs, err := providerInstance.Executor.Init(ctx, nil)
 		if err != nil {
-			resp.Diagnostics.AddError(fmt.Sprintf("Error during init: %s", err.Error()), output)
+			resp.Diagnostics.AddError(fmt.Sprintf("Error during init: %s", err.Error()), logs)
 			return
 		}
 		tflog.Info(ctx, "Helmfile init output:\n"+output)
+		tflog.Info(ctx, "Helmfile init logs:\n"+logs)
 	}
 	resp.DataSourceData = providerInstance
 	resp.ResourceData = providerInstance

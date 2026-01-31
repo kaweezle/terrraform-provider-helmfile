@@ -1,9 +1,20 @@
 {
   "version": "0.2",
   "language": "en",
-  "ignorePaths": ["dist", "go.*", ".gitignore", "*_gen.go"],
+  "ignorePaths": [
+    "dist",
+    "go.*",
+    ".gitignore",
+    "*_gen.go"
+  ],
   "dictionaryDefinitions": [],
-  "dictionaries": ["bash", "docker", "golang", "terraform", "softwareTerms"],
+  "dictionaries": [
+    "bash",
+    "docker",
+    "golang",
+    "terraform",
+    "softwareTerms"
+  ],
   "words": [
     "crds",
     "Debugf",
@@ -28,7 +39,8 @@
     "tffile",
     "tflog",
     "tfplugindocs",
-    "tfsdk"
+    "tfsdk",
+    "Warnf"
   ],
   "ignoreWords": [],
   "import": []
