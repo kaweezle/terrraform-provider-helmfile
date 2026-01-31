@@ -227,9 +227,7 @@ func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
 func (p *HelmfileLibraryExecutor) MergeEnvVars(options CommonOptionsProvider) map[string]string {
 	mergedEnvVars := make(map[string]string)
 	// Start with global env vars
-	for k, v := range p.globalOptions.envVars {
-		mergedEnvVars[k] = v
-	}
+	maps.Copy(mergedEnvVars, p.globalOptions.envVars)
 	// Override with options env vars
 	if options != nil {
 		maps.Copy(mergedEnvVars, options.EnvVars())
@@ -237,21 +235,37 @@ func (p *HelmfileLibraryExecutor) MergeEnvVars(options CommonOptionsProvider) ma
 	return mergedEnvVars
 }
 
+// Execute runs a custom function with the given options.
+func (p *HelmfileLibraryExecutor) Execute(
+	ctx context.Context,
+	options OptionsProvider,
+	fn func(context.Context, *config.GlobalImpl) error,
+) (string, error) {
+	capture := NewOutputCapture(ctx)
+	logger := CreateCaptureLogger(capture)
+	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
+	if err != nil {
+		return "", fmt.Errorf("error performing init: %w", err)
+	}
+
+	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
+	defer cleanup()
+	err = fn(ctx, globalOptions)
+
+	return capture.String(), err
+}
+
 func (p *HelmfileLibraryExecutor) Init(
 	ctx context.Context,
 	options GlobalOptionsProvider,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
-
-	var globalOptions *config.GlobalImpl
-	var err error
+	var globalOptions OptionsProvider
 	if options == nil {
-		globalOptions, err = p.createGlobalOptionsFromConfigProvider(nil, logger)
+		globalOptions = nil
 	} else {
 		// Create a simple OptionsProvider that just wraps the BaseGlobalOptionsProvider
 		// and our stored global options
-		wrappedOptions := struct {
+		globalOptions = struct {
 			BaseGlobalOptionsProvider
 			CommonOptionsProvider
 			BaseResourceOptionsProvider
@@ -260,27 +274,20 @@ func (p *HelmfileLibraryExecutor) Init(
 			CommonOptionsProvider:       &p.globalOptions.CommonOptions,
 			BaseResourceOptionsProvider: &BaseResourceOptions{},
 		}
-		globalOptions, err = p.createGlobalOptionsFromConfigProvider(wrappedOptions, logger)
 	}
-	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
-	}
+	return p.Execute(ctx, globalOptions, func(ctx context.Context, gi *config.GlobalImpl) error {
+		initOptions := &config.InitOptions{
+			Force: true,
+		}
+		initImpl := config.NewInitImpl(gi, initOptions)
 
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	initOptions := &config.InitOptions{
-		Force: true,
-	}
-	initImpl := config.NewInitImpl(globalOptions, initOptions)
-
-	helmfileApp := app.New(initImpl)
-	err = helmfileApp.Init(initImpl)
-	if err == nil {
-		err = p.InstallAdditionalPlugins(ctx, logger)
-	}
-
-	return capture.String(), err
+		helmfileApp := app.New(initImpl)
+		err := helmfileApp.Init(initImpl)
+		if err == nil {
+			err = p.InstallAdditionalPlugins(ctx, gi.Logger())
+		}
+		return err
+	})
 }
 
 func (p *HelmfileLibraryExecutor) Apply(
@@ -288,25 +295,14 @@ func (p *HelmfileLibraryExecutor) Apply(
 	options OptionsProvider,
 	applyOptions *config.ApplyOptions,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		applyOptionsImpl := config.NewApplyImpl(gi, applyOptions)
 
-	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
-	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
-	}
+		helmfileApp := app.New(applyOptionsImpl)
 
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	applyOptionsImpl := config.NewApplyImpl(globalOptions, applyOptions)
-
-	helmfileApp := app.New(applyOptionsImpl)
-
-	// Run apply operation
-	err = helmfileApp.Apply(applyOptionsImpl)
-
-	return capture.String(), err
+		// Run apply operation
+		return helmfileApp.Apply(applyOptionsImpl)
+	})
 }
 
 func (p *HelmfileLibraryExecutor) Diff(
@@ -314,24 +310,14 @@ func (p *HelmfileLibraryExecutor) Diff(
 	options OptionsProvider,
 	diffOptions *config.DiffOptions,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		diffOptionsImpl := config.NewDiffImpl(gi, diffOptions)
 
-	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
-	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
-	}
+		helmfileApp := app.New(diffOptionsImpl)
 
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	diffOptionsImpl := config.NewDiffImpl(globalOptions, diffOptions)
-	helmfileApp := app.New(diffOptionsImpl)
-
-	// Run apply operation
-	err = helmfileApp.Diff(diffOptionsImpl)
-
-	return capture.String(), err
+		// Run apply operation
+		return helmfileApp.Diff(diffOptionsImpl)
+	})
 }
 
 func (p *HelmfileLibraryExecutor) Template(
@@ -339,24 +325,12 @@ func (p *HelmfileLibraryExecutor) Template(
 	options OptionsProvider,
 	templateOptions *config.TemplateOptions,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
-
-	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
-	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
-	}
-
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	templateOptionsImpl := config.NewTemplateImpl(globalOptions, templateOptions)
-	helmfileApp := app.New(templateOptionsImpl)
-
-	// Run apply operation
-	err = helmfileApp.Template(templateOptionsImpl)
-
-	return capture.String(), err
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		templateOptionsImpl := config.NewTemplateImpl(gi, templateOptions)
+		helmfileApp := app.New(templateOptionsImpl)
+		// Run apply operation
+		return helmfileApp.Template(templateOptionsImpl)
+	})
 }
 
 func (p *HelmfileLibraryExecutor) Destroy(
@@ -364,25 +338,12 @@ func (p *HelmfileLibraryExecutor) Destroy(
 	options OptionsProvider,
 	destroyOptions *config.DestroyOptions,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
-
-	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
-	if err != nil {
-		return "", fmt.Errorf("error performing init: %w", err)
-	}
-
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	destroyOptionsImpl := config.NewDestroyImpl(globalOptions, destroyOptions)
-	helmfileApp := app.New(destroyOptionsImpl)
-
-	// Run apply operation
-	err = helmfileApp.Destroy(destroyOptionsImpl)
-
-	// Get captured output and prepend debug info
-	return capture.String(), err
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		destroyOptionsImpl := config.NewDestroyImpl(gi, destroyOptions)
+		helmfileApp := app.New(destroyOptionsImpl)
+		// Run apply operation
+		return helmfileApp.Destroy(destroyOptionsImpl)
+	})
 }
 
 func (p *HelmfileLibraryExecutor) Build(
@@ -390,26 +351,13 @@ func (p *HelmfileLibraryExecutor) Build(
 	options OptionsProvider,
 	embedValues bool,
 ) (string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
-
-	globalImpl, err := p.createGlobalOptionsFromConfigProvider(options, logger)
-	if err != nil {
-		return "", fmt.Errorf("error creating global options: %w", err)
-	}
-
-	cleanup := SetEnvVars(logger.Desugar(), p.MergeEnvVars(options))
-	defer cleanup()
-
-	buildImpl := config.NewBuildImpl(globalImpl, &config.BuildOptions{
-		EmbedValues: embedValues,
+	return p.Execute(ctx, options, func(_ context.Context, gi *config.GlobalImpl) error {
+		buildImpl := config.NewBuildImpl(gi, &config.BuildOptions{
+			EmbedValues: embedValues,
+		})
+		helmfileApp := app.New(buildImpl)
+		return helmfileApp.PrintState(buildImpl)
 	})
-
-	helmfileApp := app.New(buildImpl)
-	err = helmfileApp.PrintState(buildImpl)
-
-	// Get captured output and prepend debug info
-	return capture.String(), err
 }
 
 func (p *HelmfileLibraryExecutor) Version(_ context.Context) (string, error) {
