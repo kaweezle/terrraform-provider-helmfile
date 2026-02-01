@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/helmfile/helmfile/pkg/app"
 	"github.com/helmfile/helmfile/pkg/app/version"
 	"github.com/helmfile/helmfile/pkg/config"
@@ -244,8 +245,9 @@ func (p *HelmfileLibraryExecutor) Execute(
 	options OptionsProvider,
 	fn func(context.Context, *config.GlobalImpl) error,
 ) (string, string, error) {
-	capture := NewOutputCapture(ctx)
-	logger := CreateCaptureLogger(capture)
+	capture := NewOutputCapture()
+	logContext := tflog.SetField(tflog.NewSubsystem(ctx, "helmfile"), "executor", "HELMFILE")
+	logger := CreateCaptureLogger(logContext, capture)
 	globalOptions, err := p.createGlobalOptionsFromConfigProvider(options, logger)
 	if err != nil {
 		return "", "", fmt.Errorf("error performing init: %w", err)

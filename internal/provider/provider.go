@@ -35,7 +35,7 @@ func (p *helmfileProvider) Schema(
 	_ provider.SchemaRequest,
 	resp *provider.SchemaResponse,
 ) {
-	tflog.Debug(ctx, "[HELMFILE] in Schema request")
+	tflog.Debug(ctx, "in Schema request")
 	resp.Schema = provider_helmfile.HelmfileProviderSchema(ctx)
 	// FIXME: It should be generated from the schema definition
 	resp.Schema.Description = "Helmfile provider configures the Helmfile CLI tool for managing Helm charts deployments."

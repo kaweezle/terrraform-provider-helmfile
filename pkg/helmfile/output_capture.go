@@ -9,7 +9,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -19,16 +18,14 @@ var _ zapcore.WriteSyncer = (*OutputCapture)(nil)
 
 // OutputCapture captures log output from helmfile operations.
 type OutputCapture struct {
-	ctx    context.Context //nolint:containedctx // we want to keep the context for logging
 	buffer *bytes.Buffer
 	mutex  sync.Mutex
 }
 
 // NewOutputCapture creates a new output capture.
-func NewOutputCapture(ctx context.Context) *OutputCapture {
+func NewOutputCapture() *OutputCapture {
 	return &OutputCapture{
 		buffer: &bytes.Buffer{},
-		ctx:    ctx,
 	}
 }
 
@@ -36,8 +33,6 @@ func NewOutputCapture(ctx context.Context) *OutputCapture {
 func (o *OutputCapture) Write(p []byte) (int, error) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-	// FIXME: Should provide a better structured logging integration
-	tflog.Debug(o.ctx, string(p))
 	//nolint:wrapcheck // we want to return the original error
 	return o.buffer.Write(p)
 }
@@ -61,7 +56,7 @@ func (o *OutputCapture) Sync() error {
 }
 
 // CreateCaptureLogger creates a zap logger that captures output.
-func CreateCaptureLogger(capture *OutputCapture) *zap.SugaredLogger {
+func CreateCaptureLogger(ctx context.Context, capture *OutputCapture) *zap.SugaredLogger {
 	// Create encoder config for plain text output
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "ts",
@@ -77,9 +72,11 @@ func CreateCaptureLogger(capture *OutputCapture) *zap.SugaredLogger {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
+	encoder := NewTFLogEncoder(ctx, zapcore.NewJSONEncoder(encoderConfig))
+
 	// Create core that writes to our capture buffer
 	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig),
+		encoder,
 		capture,
 		zapcore.DebugLevel, // Capture all levels
 	)
