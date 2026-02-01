@@ -651,6 +651,62 @@
             }
           },
           {
+            "name": "destroy",
+            "single_nested": {
+              "description": "Destroy configuration",
+              "computed_optional_required": "optional",
+              "attributes": [
+                {
+                  "name": "concurrency",
+                  "int64": {
+                    "description": "do not force helm repos to update when executing \"helm repo add\"",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "skip_charts",
+                  "bool": {
+                    "description": "makes Destroy skip `withPreparedCharts`",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "wait",
+                  "bool": {
+                    "description": "adds --wait to helm uninstall commands",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "timeout",
+                  "int64": {
+                    "description": "adds --timeout to helm uninstall commands",
+                    "computed_optional_required": "optional"
+                  }
+                },
+                {
+                  "name": "cascade",
+                  "string": {
+                    "description": "'--cascade' to helm delete, available values: background, foreground, or orphan, default: background",
+                    "computed_optional_required": "optional",
+                    "validators": [
+                      {
+                        "custom": {
+                          "imports": [
+                            {
+                              "path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+                            }
+                          ],
+                          "schema_definition": "stringvalidator.OneOf(\n\"background\",\n\"foreground\",\n\"orphan\",\n)"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
             "name": "sha256_checksum",
             "string": {
               "description": "The SHA256 checksum of the Helmfile release.",

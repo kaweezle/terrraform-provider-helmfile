@@ -280,27 +280,12 @@ func (r *HelmfileReleaseResource) Create(
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	// TODO: Implement the logic to create the Helmfile release using r.provider
-	// Steps (To be completed):
-	// 1. DONE: Make a build --embed-values call to helmfile with the relevant helmfile and environment and
-	//    create a sha256 hash of the output
-	// 2. DONE: Make a list in order to list releases
-	// 3. Make an apply call to helmfile with the relevant helmfile and environment to ensure the release is
-	//    created/updated
-	// 4. DONE: Store the hash in the state to detect future changes
 
-	// executor := r.provider.Executor
-	// options, diags := NewOptionsFromModel(ctx, &data)
-	// if diags.HasError() {
-	// 	resp.Diagnostics.Append(diags...)
-	// 	return
-	// }
-
-	// applyOptions, diags := NewApplyOptionsFromModel(ctx, &data)
-	// if diags.HasError() {
-	// 	resp.Diagnostics.Append(diags...)
-	// 	return
-	// }
+	executor := r.provider.Executor
+	resp.Diagnostics.Append(applyHelmfileRelease(ctx, executor, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Set the state
 	diags = resp.State.Set(ctx, &data)
@@ -308,6 +293,196 @@ func (r *HelmfileReleaseResource) Create(
 	if resp.Diagnostics.HasError() {
 		return
 	}
+}
+
+func applyHelmfileRelease(
+	ctx context.Context,
+	executor helmfile.HelmfileExecutor,
+	data *HelmfileReleaseModel,
+) diag.Diagnostics {
+	options, diags := NewOptionsFromModel(ctx, data)
+	if diags.HasError() {
+		return diags
+	}
+
+	applyOptions, diags := NewApplyOptionsFromModel(ctx, data)
+	if diags.HasError() {
+		return diags
+	}
+
+	output, logs, err := executor.Apply(ctx, options, applyOptions)
+	if err != nil {
+		diags.AddError(
+			"Error applying Helmfile releases",
+			fmt.Sprintf(
+				"An error occurred while applying Helmfile releases: %s\nLogs:\n%s\nOutput:\n%s",
+				err.Error(),
+				logs,
+				output,
+			),
+		)
+		return diags
+	}
+	tflog.Debug(ctx, "Helmfile releases applied successfully", map[string]any{
+		"output": output,
+		"logs":   logs,
+	})
+	return diag.Diagnostics{}
+}
+
+//nolint:gocritic // Interface implementation
+func (r *HelmfileReleaseResource) Read(
+	ctx context.Context,
+	req resource.ReadRequest,
+	resp *resource.ReadResponse,
+) {
+	tflog.Debug(ctx, "################### Reading Helmfile release resource")
+	var data HelmfileReleaseModel
+	diags := req.State.Get(ctx, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+	// executor := r.provider.Executor
+	// options, diags := NewOptionsFromModel(ctx, &data)
+	// if diags.HasError() {
+	// 	resp.Diagnostics.Append(diags...)
+	// 	return
+	// }
+
+	// Set the state
+	diags = resp.State.Set(ctx, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+}
+
+//nolint:gocritic // Interface implementation
+func (r *HelmfileReleaseResource) Update(
+	ctx context.Context,
+	req resource.UpdateRequest,
+	resp *resource.UpdateResponse,
+) {
+	tflog.Debug(ctx, "################### Updating Helmfile release resource")
+	var data HelmfileReleaseModel
+	diags := req.Plan.Get(ctx, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	executor := r.provider.Executor
+	resp.Diagnostics.Append(applyHelmfileRelease(ctx, executor, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Set the state
+	diags = resp.State.Set(ctx, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+}
+
+//nolint:gocritic // Interface implementation
+func (r *HelmfileReleaseResource) Delete(
+	ctx context.Context,
+	req resource.DeleteRequest,
+	resp *resource.DeleteResponse,
+) {
+	tflog.Debug(ctx, "################### Deleting Helmfile release resource")
+	// Implementation of Delete operation
+	var data HelmfileReleaseModel
+	diags := req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	executor := r.provider.Executor
+	resp.Diagnostics.Append(destroyHelmfileRelease(ctx, executor, &data)...)
+}
+
+func destroyHelmfileRelease(
+	ctx context.Context,
+	executor helmfile.HelmfileExecutor,
+	data *HelmfileReleaseModel,
+) diag.Diagnostics {
+	options, diags := NewOptionsFromModel(ctx, data)
+	if diags.HasError() {
+		return diags
+	}
+
+	destroyOptions := NewDestroyOptionsFromModel(data)
+
+	output, logs, err := executor.Destroy(ctx, options, destroyOptions)
+	if err != nil {
+		diags.AddError(
+			"Error destroying Helmfile releases",
+			fmt.Sprintf(
+				"An error occurred while destroying Helmfile releases: %s\nLogs:\n%s\nOutput:\n%s",
+				err.Error(),
+				logs,
+				output,
+			),
+		)
+		return diags
+	}
+	tflog.Debug(ctx, "Helmfile releases destroyed successfully", map[string]any{
+		"output": output,
+		"logs":   logs,
+	})
+	return diag.Diagnostics{}
+}
+
+func NewDestroyOptionsFromModel(
+	model *HelmfileReleaseModel,
+) *config.DestroyOptions {
+	result := &config.DestroyOptions{}
+	destroyOptions := model.Destroy
+	if destroyOptions.IsNull() || destroyOptions.IsUnknown() {
+		return result
+	}
+	result.Cascade = destroyOptions.Cascade.ValueString()
+	result.Concurrency = int(destroyOptions.Concurrency.ValueInt64())
+	result.DeleteWait = destroyOptions.Wait.ValueBool()
+	result.DeleteTimeout = int(destroyOptions.Timeout.ValueInt64())
+	return result
+}
+
+//nolint:gocritic // Interface implementation
+func (r *HelmfileReleaseResource) ModifyPlan(
+	ctx context.Context,
+	req resource.ModifyPlanRequest,
+	resp *resource.ModifyPlanResponse,
+) {
+	tflog.Debug(ctx, "################### Modifying plan for Helmfile release resource")
+	if req.Plan.Raw.IsNull() {
+		// Resource is being destroyed, no need to modify the plan
+		return
+	}
+	// Implementation of ModifyPlan operation
+	var data HelmfileReleaseModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	executor := r.provider.Executor
+	options, diags := NewOptionsFromModel(ctx, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	diags = updateReleaseState(ctx, executor, options, &data)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
 }
 
 func updateReleaseState(
@@ -458,117 +633,4 @@ func jsonToReleasesListValue(
 		values,
 	)
 	return &result, diags
-}
-
-//nolint:gocritic // Interface implementation
-func (r *HelmfileReleaseResource) Read(
-	ctx context.Context,
-	req resource.ReadRequest,
-	resp *resource.ReadResponse,
-) {
-	tflog.Debug(ctx, "################### Reading Helmfile release resource")
-	var data HelmfileReleaseModel
-	diags := req.State.Get(ctx, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-	// executor := r.provider.Executor
-	// options, diags := NewOptionsFromModel(ctx, &data)
-	// if diags.HasError() {
-	// 	resp.Diagnostics.Append(diags...)
-	// 	return
-	// }
-
-	tflog.Debug(ctx, "Helmfile release resource state updated during read", map[string]any{
-		"sha256_checksum": data.Sha256Checksum.ValueString(),
-	})
-
-	// Set the state
-	diags = resp.State.Set(ctx, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-}
-
-//nolint:gocritic // Interface implementation
-func (r *HelmfileReleaseResource) Update(
-	ctx context.Context,
-	req resource.UpdateRequest,
-	resp *resource.UpdateResponse,
-) {
-	tflog.Debug(ctx, "################### Updating Helmfile release resource")
-	var data HelmfileReleaseModel
-	diags := req.Plan.Get(ctx, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
-	// executor := r.provider.Executor
-	// options, diags := NewOptionsFromModel(ctx, &data)
-	// if diags.HasError() {
-	// 	resp.Diagnostics.Append(diags...)
-	// 	return
-	// }
-
-	// TODO: Implement the logic to create the Helmfile release using r.provider
-
-	// Set the state
-	diags = resp.State.Set(ctx, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-}
-
-//nolint:gocritic // Interface implementation
-func (r *HelmfileReleaseResource) Delete(
-	ctx context.Context,
-	req resource.DeleteRequest,
-	resp *resource.DeleteResponse,
-) {
-	tflog.Debug(ctx, "################### Deleting Helmfile release resource")
-	// Implementation of Delete operation
-	var data HelmfileReleaseModel
-	diags := req.State.Get(ctx, &data)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-//nolint:gocritic // Interface implementation
-func (r *HelmfileReleaseResource) ModifyPlan(
-	ctx context.Context,
-	req resource.ModifyPlanRequest,
-	resp *resource.ModifyPlanResponse,
-) {
-	tflog.Debug(ctx, "################### Modifying plan for Helmfile release resource")
-	if req.Plan.Raw.IsNull() {
-		// Resource is being destroyed, no need to modify the plan
-		return
-	}
-	// Implementation of ModifyPlan operation
-	var data HelmfileReleaseModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	executor := r.provider.Executor
-	options, diags := NewOptionsFromModel(ctx, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
-	diags = updateReleaseState(ctx, executor, options, &data)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
-	resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
 }

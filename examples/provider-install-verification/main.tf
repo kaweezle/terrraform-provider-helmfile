@@ -24,4 +24,7 @@ resource "helmfile_release" "example" {
   name         = "prometheus"
   file_or_path = "${path.module}/helmfile.yaml"
   kubeconfig   = "/root/kubeconfig"
+  destroy = {
+    wait = true
+  }
 }

@@ -5,6 +5,7 @@ package resource_helmfile_release
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -55,6 +56,50 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "Enable verbose output for Helm and set log-level to debug.",
 				MarkdownDescription: "Enable verbose output for Helm and set log-level to debug.",
+			},
+			"destroy": schema.SingleNestedAttribute{
+				Attributes: map[string]schema.Attribute{
+					"cascade": schema.StringAttribute{
+						Optional:            true,
+						Description:         "'--cascade' to helm delete, available values: background, foreground, or orphan, default: background",
+						MarkdownDescription: "'--cascade' to helm delete, available values: background, foreground, or orphan, default: background",
+						Validators: []validator.String{
+							stringvalidator.OneOf(
+								"background",
+								"foreground",
+								"orphan",
+							),
+						},
+					},
+					"concurrency": schema.Int64Attribute{
+						Optional:            true,
+						Description:         "do not force helm repos to update when executing \"helm repo add\"",
+						MarkdownDescription: "do not force helm repos to update when executing \"helm repo add\"",
+					},
+					"skip_charts": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "makes Destroy skip `withPreparedCharts`",
+						MarkdownDescription: "makes Destroy skip `withPreparedCharts`",
+					},
+					"timeout": schema.Int64Attribute{
+						Optional:            true,
+						Description:         "adds --timeout to helm uninstall commands",
+						MarkdownDescription: "adds --timeout to helm uninstall commands",
+					},
+					"wait": schema.BoolAttribute{
+						Optional:            true,
+						Description:         "adds --wait to helm uninstall commands",
+						MarkdownDescription: "adds --wait to helm uninstall commands",
+					},
+				},
+				CustomType: DestroyType{
+					ObjectType: types.ObjectType{
+						AttrTypes: DestroyValue{}.AttributeTypes(ctx),
+					},
+				},
+				Optional:            true,
+				Description:         "Destroy configuration",
+				MarkdownDescription: "Destroy configuration",
 			},
 			"detailed_exitcode": schema.BoolAttribute{
 				Optional:            true,
@@ -415,6 +460,7 @@ type HelmfileReleaseModel struct {
 	Concurrency              types.Int64    `tfsdk:"concurrency"`
 	Context                  types.Int64    `tfsdk:"context"`
 	Debug                    types.Bool     `tfsdk:"debug"`
+	Destroy                  DestroyValue   `tfsdk:"destroy"`
 	DetailedExitcode         types.Bool     `tfsdk:"detailed_exitcode"`
 	DiffArgs                 types.String   `tfsdk:"diff_args"`
 	EnforceNeedsAreInstalled types.Bool     `tfsdk:"enforce_needs_are_installed"`
@@ -463,6 +509,550 @@ type HelmfileReleaseModel struct {
 	Wait                     types.Bool     `tfsdk:"wait"`
 	WaitForJobs              types.Bool     `tfsdk:"wait_for_jobs"`
 	WaitRetries              types.Int64    `tfsdk:"wait_retries"`
+}
+
+var _ basetypes.ObjectTypable = DestroyType{}
+
+type DestroyType struct {
+	basetypes.ObjectType
+}
+
+func (t DestroyType) Equal(o attr.Type) bool {
+	other, ok := o.(DestroyType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t DestroyType) String() string {
+	return "DestroyType"
+}
+
+func (t DestroyType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributes := in.Attributes()
+
+	cascadeAttribute, ok := attributes["cascade"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`cascade is missing from object`)
+
+		return nil, diags
+	}
+
+	cascadeVal, ok := cascadeAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`cascade expected to be basetypes.StringValue, was: %T`, cascadeAttribute))
+	}
+
+	concurrencyAttribute, ok := attributes["concurrency"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`concurrency is missing from object`)
+
+		return nil, diags
+	}
+
+	concurrencyVal, ok := concurrencyAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`concurrency expected to be basetypes.Int64Value, was: %T`, concurrencyAttribute))
+	}
+
+	skipChartsAttribute, ok := attributes["skip_charts"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_charts is missing from object`)
+
+		return nil, diags
+	}
+
+	skipChartsVal, ok := skipChartsAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_charts expected to be basetypes.BoolValue, was: %T`, skipChartsAttribute))
+	}
+
+	timeoutAttribute, ok := attributes["timeout"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`timeout is missing from object`)
+
+		return nil, diags
+	}
+
+	timeoutVal, ok := timeoutAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`timeout expected to be basetypes.Int64Value, was: %T`, timeoutAttribute))
+	}
+
+	waitAttribute, ok := attributes["wait"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`wait is missing from object`)
+
+		return nil, diags
+	}
+
+	waitVal, ok := waitAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`wait expected to be basetypes.BoolValue, was: %T`, waitAttribute))
+	}
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return DestroyValue{
+		Cascade:     cascadeVal,
+		Concurrency: concurrencyVal,
+		SkipCharts:  skipChartsVal,
+		Timeout:     timeoutVal,
+		Wait:        waitVal,
+		state:       attr.ValueStateKnown,
+	}, diags
+}
+
+func NewDestroyValueNull() DestroyValue {
+	return DestroyValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewDestroyValueUnknown() DestroyValue {
+	return DestroyValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewDestroyValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (DestroyValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing DestroyValue Attribute Value",
+				"While creating a DestroyValue value, a missing attribute value was detected. "+
+					"A DestroyValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("DestroyValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid DestroyValue Attribute Type",
+				"While creating a DestroyValue value, an invalid attribute value was detected. "+
+					"A DestroyValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("DestroyValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("DestroyValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra DestroyValue Attribute Value",
+				"While creating a DestroyValue value, an extra attribute value was detected. "+
+					"A DestroyValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra DestroyValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewDestroyValueUnknown(), diags
+	}
+
+	cascadeAttribute, ok := attributes["cascade"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`cascade is missing from object`)
+
+		return NewDestroyValueUnknown(), diags
+	}
+
+	cascadeVal, ok := cascadeAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`cascade expected to be basetypes.StringValue, was: %T`, cascadeAttribute))
+	}
+
+	concurrencyAttribute, ok := attributes["concurrency"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`concurrency is missing from object`)
+
+		return NewDestroyValueUnknown(), diags
+	}
+
+	concurrencyVal, ok := concurrencyAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`concurrency expected to be basetypes.Int64Value, was: %T`, concurrencyAttribute))
+	}
+
+	skipChartsAttribute, ok := attributes["skip_charts"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`skip_charts is missing from object`)
+
+		return NewDestroyValueUnknown(), diags
+	}
+
+	skipChartsVal, ok := skipChartsAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`skip_charts expected to be basetypes.BoolValue, was: %T`, skipChartsAttribute))
+	}
+
+	timeoutAttribute, ok := attributes["timeout"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`timeout is missing from object`)
+
+		return NewDestroyValueUnknown(), diags
+	}
+
+	timeoutVal, ok := timeoutAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`timeout expected to be basetypes.Int64Value, was: %T`, timeoutAttribute))
+	}
+
+	waitAttribute, ok := attributes["wait"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`wait is missing from object`)
+
+		return NewDestroyValueUnknown(), diags
+	}
+
+	waitVal, ok := waitAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`wait expected to be basetypes.BoolValue, was: %T`, waitAttribute))
+	}
+
+	if diags.HasError() {
+		return NewDestroyValueUnknown(), diags
+	}
+
+	return DestroyValue{
+		Cascade:     cascadeVal,
+		Concurrency: concurrencyVal,
+		SkipCharts:  skipChartsVal,
+		Timeout:     timeoutVal,
+		Wait:        waitVal,
+		state:       attr.ValueStateKnown,
+	}, diags
+}
+
+func NewDestroyValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) DestroyValue {
+	object, diags := NewDestroyValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewDestroyValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t DestroyType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewDestroyValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewDestroyValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewDestroyValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewDestroyValueMust(DestroyValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t DestroyType) ValueType(ctx context.Context) attr.Value {
+	return DestroyValue{}
+}
+
+var _ basetypes.ObjectValuable = DestroyValue{}
+
+type DestroyValue struct {
+	Cascade     basetypes.StringValue `tfsdk:"cascade"`
+	Concurrency basetypes.Int64Value  `tfsdk:"concurrency"`
+	SkipCharts  basetypes.BoolValue   `tfsdk:"skip_charts"`
+	Timeout     basetypes.Int64Value  `tfsdk:"timeout"`
+	Wait        basetypes.BoolValue   `tfsdk:"wait"`
+	state       attr.ValueState
+}
+
+func (v DestroyValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 5)
+
+	var val tftypes.Value
+	var err error
+
+	attrTypes["cascade"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["concurrency"] = basetypes.Int64Type{}.TerraformType(ctx)
+	attrTypes["skip_charts"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["timeout"] = basetypes.Int64Type{}.TerraformType(ctx)
+	attrTypes["wait"] = basetypes.BoolType{}.TerraformType(ctx)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 5)
+
+		val, err = v.Cascade.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["cascade"] = val
+
+		val, err = v.Concurrency.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["concurrency"] = val
+
+		val, err = v.SkipCharts.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["skip_charts"] = val
+
+		val, err = v.Timeout.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["timeout"] = val
+
+		val, err = v.Wait.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["wait"] = val
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v DestroyValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v DestroyValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v DestroyValue) String() string {
+	return "DestroyValue"
+}
+
+func (v DestroyValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{
+		"cascade":     basetypes.StringType{},
+		"concurrency": basetypes.Int64Type{},
+		"skip_charts": basetypes.BoolType{},
+		"timeout":     basetypes.Int64Type{},
+		"wait":        basetypes.BoolType{},
+	}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{
+			"cascade":     v.Cascade,
+			"concurrency": v.Concurrency,
+			"skip_charts": v.SkipCharts,
+			"timeout":     v.Timeout,
+			"wait":        v.Wait,
+		})
+
+	return objVal, diags
+}
+
+func (v DestroyValue) Equal(o attr.Value) bool {
+	other, ok := o.(DestroyValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	if !v.Cascade.Equal(other.Cascade) {
+		return false
+	}
+
+	if !v.Concurrency.Equal(other.Concurrency) {
+		return false
+	}
+
+	if !v.SkipCharts.Equal(other.SkipCharts) {
+		return false
+	}
+
+	if !v.Timeout.Equal(other.Timeout) {
+		return false
+	}
+
+	if !v.Wait.Equal(other.Wait) {
+		return false
+	}
+
+	return true
+}
+
+func (v DestroyValue) Type(ctx context.Context) attr.Type {
+	return DestroyType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v DestroyValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{
+		"cascade":     basetypes.StringType{},
+		"concurrency": basetypes.Int64Type{},
+		"skip_charts": basetypes.BoolType{},
+		"timeout":     basetypes.Int64Type{},
+		"wait":        basetypes.BoolType{},
+	}
 }
 
 var _ basetypes.ObjectTypable = OverridesType{}

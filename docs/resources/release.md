@@ -219,6 +219,7 @@ resource "helmfile_release" "remote_cluster" {
 - `concurrency` (Number) Maximum number of concurrent helm processes to run, 0 is unlimited.
 - `context` (Number) Output NUM lines of context around changes.
 - `debug` (Boolean) Enable verbose output for Helm and set log-level to debug.
+- `destroy` (Attributes) Destroy configuration (see [below for nested schema](#nestedatt--destroy))
 - `detailed_exitcode` (Boolean) Return a non-zero exit code 2 instead of 0 when there were changes detected AND the changes are synced successfully.
 - `diff_args` (String) Pass args to helm helm-diff.
 - `enforce_needs_are_installed` (Boolean) When using --selector/-l, enforce that the selected releases' needs are also installed.
@@ -265,6 +266,18 @@ resource "helmfile_release" "remote_cluster" {
 - `wait` (Boolean) Override helmDefaults.wait setting 'helm upgrade --install --wait'.
 - `wait_for_jobs` (Boolean) Override helmDefaults.waitForJobs setting 'helm upgrade --install --wait-for-jobs'.
 - `wait_retries` (Number) Override helmDefaults.waitRetries setting 'helm upgrade --install --wait --wait-retries'.
+
+<a id="nestedatt--destroy"></a>
+### Nested Schema for `destroy`
+
+Optional:
+
+- `cascade` (String) '--cascade' to helm delete, available values: background, foreground, or orphan, default: background
+- `concurrency` (Number) do not force helm repos to update when executing "helm repo add"
+- `skip_charts` (Boolean) makes Destroy skip `withPreparedCharts`
+- `timeout` (Number) adds --timeout to helm uninstall commands
+- `wait` (Boolean) adds --wait to helm uninstall commands
+
 
 <a id="nestedatt--overrides"></a>
 ### Nested Schema for `overrides`
