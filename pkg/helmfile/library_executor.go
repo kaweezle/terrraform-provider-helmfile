@@ -39,7 +39,17 @@ type HelmfileLibraryExecutor struct {
 	additionalPlugins []HelmPlugin
 }
 
-// NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel.
+// NewHelmfileLibraryExecutor creates a new HelmfileLibraryExecutor instance.
+//
+// It initializes the executor with global options and a list of additional Helm plugins
+// that should be installed and verified during helmfile operations.
+//
+// Parameters:
+//   - options: Global configuration options for helmfile operations
+//   - additionalPlugins: List of Helm plugins to install and manage
+//
+// Returns:
+//   - *HelmfileLibraryExecutor: A new executor instance ready to perform helmfile operations
 func NewHelmfileLibraryExecutor(
 	options *GlobalOptions,
 	additionalPlugins []HelmPlugin,
@@ -50,6 +60,18 @@ func NewHelmfileLibraryExecutor(
 	}
 }
 
+// InstallAdditionalPlugins installs and verifies additional Helm plugins.
+//
+// This method checks each configured plugin's version and installs or updates
+// it as necessary. It ensures all required plugins are available before helmfile
+// operations are executed.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - logger: Structured logger for operation tracking
+//
+// Returns:
+//   - error: If plugin installation or verification fails
 func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
@@ -136,6 +158,16 @@ func (p *HelmfileLibraryExecutor) InstallAdditionalPlugins(
 	return nil
 }
 
+// copyOptions merges options from an OptionsProvider into GlobalOptions.
+//
+// This helper function copies configuration values from the provider interface
+// into the helmfile GlobalOptions structure. It handles conditional copying,
+// only overwriting values if they are set in the provider.
+//
+// Parameters:
+//   - globalOptions: Target GlobalOptions to populate
+//   - options: Source provider containing configuration values
+//
 //nolint:gocyclo // Structure is heavy
 func copyOptions(globalOptions *config.GlobalOptions, options OptionsProvider) {
 	if options == nil {
@@ -191,6 +223,19 @@ func copyOptions(globalOptions *config.GlobalOptions, options OptionsProvider) {
 	}
 }
 
+// createGlobalOptionsFromConfigProvider creates a helmfile GlobalImpl from configuration.
+//
+// This method constructs a complete GlobalImpl instance by merging the executor's
+// stored global options with resource-specific options. It handles logger configuration
+// and state value sets.
+//
+// Parameters:
+//   - options: Resource-specific options to merge with global settings
+//   - logger: Logger instance to attach to the configuration
+//
+// Returns:
+//   - *config.GlobalImpl: Fully configured global options for helmfile operations
+//   - error: If configuration creation or validation fails
 func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
 	options OptionsProvider,
 	logger *zap.SugaredLogger,
@@ -228,6 +273,17 @@ func (p *HelmfileLibraryExecutor) createGlobalOptionsFromConfigProvider(
 	return result, nil
 }
 
+// MergeEnvVars merges global and resource-specific environment variables.
+//
+// This method combines environment variables from global configuration with
+// resource-specific overrides. Resource-level variables take precedence over
+// global variables when there are conflicts.
+//
+// Parameters:
+//   - options: Provider containing resource-specific environment variables
+//
+// Returns:
+//   - map[string]string: Merged environment variables map
 func (p *HelmfileLibraryExecutor) MergeEnvVars(options CommonOptionsProvider) map[string]string {
 	mergedEnvVars := make(map[string]string)
 	// Start with global env vars
@@ -239,7 +295,21 @@ func (p *HelmfileLibraryExecutor) MergeEnvVars(options CommonOptionsProvider) ma
 	return mergedEnvVars
 }
 
-// Execute runs a custom function with the given options.
+// Execute runs a custom helmfile operation with the given options.
+//
+// This is the core execution method that sets up the environment, captures output,
+// manages environment variables, and executes the provided function. It handles
+// stdout redirection, logging configuration, and cleanup.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - fn: Function to execute with the configured GlobalImpl
+//
+// Returns:
+//   - string: Captured stdout from the operation
+//   - string: Captured logs from the operation
+//   - error: If the operation fails
 func (p *HelmfileLibraryExecutor) Execute(
 	ctx context.Context,
 	options OptionsProvider,
@@ -285,6 +355,20 @@ func (p *HelmfileLibraryExecutor) Execute(
 	return out, capture.String(), err
 }
 
+// Init runs helmfile init to install dependencies.
+//
+// This method initializes helmfile by installing chart dependencies and any
+// configured additional plugins. It should be called before performing other
+// helmfile operations if dependencies need to be resolved.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Global options provider (can be nil to use executor defaults)
+//
+// Returns:
+//   - string: Captured stdout from the init operation
+//   - string: Captured logs from the init operation
+//   - error: If initialization fails
 func (p *HelmfileLibraryExecutor) Init(
 	ctx context.Context,
 	options GlobalOptionsProvider,
@@ -320,6 +404,20 @@ func (p *HelmfileLibraryExecutor) Init(
 	})
 }
 
+// Apply runs helmfile apply/sync to deploy releases.
+//
+// This method applies the helmfile configuration, deploying or updating Helm releases
+// as specified. It is equivalent to running 'helmfile apply' on the command line.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - applyOptions: Specific options for the apply operation (wait, timeout, etc.)
+//
+// Returns:
+//   - string: Captured stdout from the apply operation
+//   - string: Captured logs from the apply operation
+//   - error: If the apply operation fails
 func (p *HelmfileLibraryExecutor) Apply(
 	ctx context.Context,
 	options OptionsProvider,
@@ -335,6 +433,21 @@ func (p *HelmfileLibraryExecutor) Apply(
 	})
 }
 
+// Diff runs helmfile diff to show changes.
+//
+// This method compares the current state with the desired state defined in the
+// helmfile configuration. It shows what changes would be applied without actually
+// applying them.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - diffOptions: Specific options for the diff operation
+//
+// Returns:
+//   - string: Captured stdout showing the diff output
+//   - string: Captured logs from the diff operation
+//   - error: If the diff operation fails
 func (p *HelmfileLibraryExecutor) Diff(
 	ctx context.Context,
 	options OptionsProvider,
@@ -350,6 +463,21 @@ func (p *HelmfileLibraryExecutor) Diff(
 	})
 }
 
+// Template runs helmfile template to render manifests.
+//
+// This method renders the Kubernetes manifests from Helm charts defined in the
+// helmfile configuration without installing them. Useful for validation and
+// inspection of generated resources.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - templateOptions: Specific options for the template operation
+//
+// Returns:
+//   - string: Captured stdout containing rendered manifests
+//   - string: Captured logs from the template operation
+//   - error: If the template operation fails
 func (p *HelmfileLibraryExecutor) Template(
 	ctx context.Context,
 	options OptionsProvider,
@@ -363,6 +491,21 @@ func (p *HelmfileLibraryExecutor) Template(
 	})
 }
 
+// Destroy runs helmfile destroy to delete releases.
+//
+// This method removes all Helm releases defined in the helmfile configuration
+// from the Kubernetes cluster. It is equivalent to running 'helmfile destroy'
+// on the command line.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - destroyOptions: Specific options for the destroy operation (cascade, wait, etc.)
+//
+// Returns:
+//   - string: Captured stdout from the destroy operation
+//   - string: Captured logs from the destroy operation
+//   - error: If the destroy operation fails
 func (p *HelmfileLibraryExecutor) Destroy(
 	ctx context.Context,
 	options OptionsProvider,
@@ -376,6 +519,21 @@ func (p *HelmfileLibraryExecutor) Destroy(
 	})
 }
 
+// Build runs helmfile build to validate configuration.
+//
+// This method validates the helmfile configuration and outputs the processed
+// state. It can optionally embed values into the output. This is primarily
+// used for validation and generating checksums for change detection.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - embedValues: Whether to embed values in the build output
+//
+// Returns:
+//   - string: Captured stdout containing the build output
+//   - string: Captured logs from the build operation
+//   - error: If the build operation fails
 func (p *HelmfileLibraryExecutor) Build(
 	ctx context.Context,
 	options OptionsProvider,
@@ -390,6 +548,21 @@ func (p *HelmfileLibraryExecutor) Build(
 	})
 }
 
+// List runs helmfile list to list releases.
+//
+// This method lists all releases defined in the helmfile configuration,
+// returning them in JSON format. It can optionally skip chart information
+// for faster execution.
+//
+// Parameters:
+//   - ctx: Context for cancellation and deadline control
+//   - options: Configuration options for the operation
+//   - skipCharts: Whether to skip chart information in the output
+//
+// Returns:
+//   - string: Captured stdout containing JSON list of releases
+//   - string: Captured logs from the list operation
+//   - error: If the list operation fails
 func (p *HelmfileLibraryExecutor) List(
 	ctx context.Context,
 	options OptionsProvider,
@@ -405,6 +578,18 @@ func (p *HelmfileLibraryExecutor) List(
 	})
 }
 
+// Version returns the helmfile version.
+//
+// This method returns the version string of the helmfile library being used.
+// It does not require any configuration options.
+//
+// Parameters:
+//   - _: Context (not used in this implementation)
+//
+// Returns:
+//   - string: Version string
+//   - string: Empty logs string
+//   - error: Always nil (this operation cannot fail)
 func (p *HelmfileLibraryExecutor) Version(_ context.Context) (string, string, error) {
 	return version.Version(), "", nil
 }

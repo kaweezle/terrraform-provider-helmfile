@@ -18,7 +18,20 @@ type HelmfileProvider struct {
 	Executor *helmfile.HelmfileLibraryExecutor
 }
 
-// NewGlobalOptionsFromModel creates GlobalOptions from HelmfileModel.
+// NewGlobalOptionsFromModel creates GlobalOptions from a Terraform model.
+//
+// This function converts the provider configuration model from Terraform into
+// the internal GlobalOptions structure used by the helmfile executor. It extracts
+// and validates configuration values from the model and populates both base global
+// options and common options.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - model: Provider model from Terraform configuration
+//
+// Returns:
+//   - *helmfile.GlobalOptions: Converted global options
+//   - diag.Diagnostics: Diagnostics if conversion encounters issues
 func NewGlobalOptionsFromModel(
 	ctx context.Context,
 	model *HelmfileModel,
@@ -61,6 +74,19 @@ func NewGlobalOptionsFromModel(
 	return globalOptions, diag.Diagnostics{}
 }
 
+// NewPluginsFromModel converts plugin configuration to HelmPlugin structs.
+//
+// This function takes the plugin configuration from the Terraform provider
+// model and converts it to the internal HelmPlugin representation. It validates
+// and extracts plugin name, repository, and version information.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - model: Provider model containing plugin configuration
+//
+// Returns:
+//   - []helmfile.HelmPlugin: Converted plugin list
+//   - diag.Diagnostics: Diagnostics if conversion encounters issues
 func NewPluginsFromModel(
 	ctx context.Context,
 	model *HelmfileModel,
@@ -80,7 +106,19 @@ func NewPluginsFromModel(
 	return result, diag.Diagnostics{}
 }
 
-// NewHelmfileProvider creates a new HelmfileProvider instance from the given HelmfileModel.
+// NewHelmfileProvider creates a new HelmfileProvider instance from the given model.
+//
+// This function creates and initializes the provider instance with global options
+// and additional plugins extracted from the Terraform configuration model. It creates
+// the underlying helmfile executor that will be used by all resources.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - model: Provider configuration model from Terraform
+//
+// Returns:
+//   - *HelmfileProvider: Configured provider instance ready for use
+//   - diag.Diagnostics: Diagnostics if provider creation encounters issues
 func NewHelmfileProvider(
 	ctx context.Context,
 	model *HelmfileModel,

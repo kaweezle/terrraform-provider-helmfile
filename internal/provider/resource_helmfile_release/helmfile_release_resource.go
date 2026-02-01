@@ -35,10 +35,27 @@ type HelmfileReleaseResource struct {
 	provider *provider_helmfile.HelmfileProvider
 }
 
+// NewHelmfileReleaseResource creates a new helmfile_release resource instance.
+//
+// This is the factory function used by the Terraform framework to create
+// new instances of the helmfile_release resource.
+//
+// Returns:
+//   - resource.Resource: A new resource instance
 func NewHelmfileReleaseResource() resource.Resource {
 	return &HelmfileReleaseResource{}
 }
 
+// Metadata sets resource-level metadata.
+//
+// This method returns metadata about the resource that Terraform uses for
+// resource identification and configuration. It sets the resource type name
+// by appending "_release" to the provider type name.
+//
+// Parameters:
+//   - _: Context (not used in this implementation)
+//   - req: Metadata request from the framework
+//   - resp: Metadata response to populate
 func (r *HelmfileReleaseResource) Metadata(
 	_ context.Context,
 	req resource.MetadataRequest,
@@ -47,6 +64,20 @@ func (r *HelmfileReleaseResource) Metadata(
 	resp.TypeName = req.ProviderTypeName + "_release"
 }
 
+// NewOptionsFromModel creates helmfile Options from a Terraform model.
+//
+// This function converts the resource configuration model from Terraform into
+// the internal Options structure used by the helmfile executor. It extracts
+// and validates configuration values including args, environment variables,
+// selectors, state values, and overrides.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - model: Resource model from Terraform configuration
+//
+// Returns:
+//   - *helmfile.Options: Converted options for helmfile operations
+//   - diag.Diagnostics: Diagnostics if conversion encounters issues
 func NewOptionsFromModel(
 	ctx context.Context,
 	model *HelmfileReleaseModel,
@@ -124,6 +155,20 @@ func NewOptionsFromModel(
 	return options, diag.Diagnostics{}
 }
 
+// NewApplyOptionsFromModel creates helmfile ApplyOptions from a Terraform model.
+//
+// This function converts the resource configuration model into the helmfile
+// ApplyOptions structure. It maps all apply-specific configuration values including
+// cascade behavior, concurrency, wait settings, hooks, CRDs, cleanup, and more.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - model: Resource model from Terraform configuration
+//
+// Returns:
+//   - *config.ApplyOptions: Converted options for helmfile apply operation
+//   - diag.Diagnostics: Diagnostics if conversion encounters issues
+//
 //nolint:gocyclo // Function is complex due to many fields to map
 func NewApplyOptionsFromModel(
 	ctx context.Context,
@@ -206,6 +251,15 @@ func NewApplyOptionsFromModel(
 	return applyOptions, diag.Diagnostics{}
 }
 
+// Schema defines the resource schema.
+//
+// This method returns the schema for the resource configuration. The schema
+// is automatically generated from the provider-code-spec.json file.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - _: Schema request (not used in this implementation)
+//   - resp: Schema response to populate with the resource schema
 func (r *HelmfileReleaseResource) Schema(
 	ctx context.Context,
 	_ resource.SchemaRequest,
@@ -215,6 +269,16 @@ func (r *HelmfileReleaseResource) Schema(
 	resp.Schema.Description = "Manages a Helm release defined in a Helmfile."
 }
 
+// Configure configures the resource with provider data.
+//
+// This method is called by the framework during resource initialization to
+// provide the resource with access to the configured provider instance. It
+// validates the provider type and stores it for use in CRUD operations.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: Configuration request containing provider data
+//   - resp: Configuration response to populate with diagnostics
 func (r *HelmfileReleaseResource) Configure(
 	ctx context.Context,
 	req resource.ConfigureRequest,
@@ -239,6 +303,20 @@ func (r *HelmfileReleaseResource) Configure(
 	r.provider = provider
 }
 
+// removeNondeterministicBuildLogLines filters build output for deterministic hashing.
+//
+// This function removes non-deterministic lines from helmfile build output to enable
+// consistent hash calculation. It filters out comment lines and filepath lines that
+// contain randomly generated temporary file names. This makes the helmfile-diff result
+// deterministic by using the output of `helmfile build --embed-values` as the hash key.
+//
+// Parameters:
+//   - s: Raw helmfile build output string
+//
+// Returns:
+//   - string: Filtered output with non-deterministic lines removed
+//   - error: If filtering fails
+//
 // This provider uses output of `helmfile build` to calculate the hash key of the helmfile-diff cache, which is used
 // to make originally non-deterministic `helmfile-diff` result to be deterministic.
 //
@@ -267,13 +345,24 @@ func removeNondeterministicBuildLogLines(s string) (string, error) {
 	return buf.String(), nil
 }
 
+// Create implements the resource Create operation.
+//
+// This method creates a new helmfile release by applying the helmfile configuration.
+// It extracts the configuration from the plan, executes helmfile apply, and saves
+// the resulting state.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: Create request containing the planned configuration
+//   - resp: Create response to populate with the resulting state
+//
 //nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Create(
 	ctx context.Context,
 	req resource.CreateRequest,
 	resp *resource.CreateResponse,
 ) {
-	tflog.Debug(ctx, "################### Creating Helmfile release resource")
+	tflog.Debug(ctx, "=HLMFL=> Creating Helmfile release resource")
 	var data HelmfileReleaseModel
 	diags := req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -295,6 +384,19 @@ func (r *HelmfileReleaseResource) Create(
 	}
 }
 
+// applyHelmfileRelease executes the helmfile apply operation.
+//
+// This function converts the resource model to helmfile options and apply options,
+// then executes the apply operation using the helmfile executor. It handles errors
+// and logs the operation results.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - executor: Helmfile executor to use for the apply operation
+//   - data: Resource model containing configuration
+//
+// Returns:
+//   - diag.Diagnostics: Diagnostics if the operation encounters issues
 func applyHelmfileRelease(
 	ctx context.Context,
 	executor helmfile.HelmfileExecutor,
@@ -330,13 +432,24 @@ func applyHelmfileRelease(
 	return diag.Diagnostics{}
 }
 
+// Read implements the resource Read operation.
+//
+// This method reads the current state of the helmfile release. Currently, it
+// simply preserves the existing state without querying the cluster, as helmfile
+// does not provide a native read operation.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: Read request containing the current state
+//   - resp: Read response to populate with refreshed state
+//
 //nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Read(
 	ctx context.Context,
 	req resource.ReadRequest,
 	resp *resource.ReadResponse,
 ) {
-	tflog.Debug(ctx, "################### Reading Helmfile release resource")
+	tflog.Debug(ctx, "=HLMFL=> Reading Helmfile release resource")
 	var data HelmfileReleaseModel
 	diags := req.State.Get(ctx, &data)
 	if diags.HasError() {
@@ -358,13 +471,24 @@ func (r *HelmfileReleaseResource) Read(
 	}
 }
 
+// Update implements the resource Update operation.
+//
+// This method updates an existing helmfile release by applying the updated
+// configuration. It follows the same logic as Create, using helmfile apply
+// to bring the release to the desired state.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: Update request containing the new planned configuration
+//   - resp: Update response to populate with the resulting state
+//
 //nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Update(
 	ctx context.Context,
 	req resource.UpdateRequest,
 	resp *resource.UpdateResponse,
 ) {
-	tflog.Debug(ctx, "################### Updating Helmfile release resource")
+	tflog.Debug(ctx, "=HLMFL=> Updating Helmfile release resource")
 	var data HelmfileReleaseModel
 	diags := req.Plan.Get(ctx, &data)
 	if diags.HasError() {
@@ -386,13 +510,24 @@ func (r *HelmfileReleaseResource) Update(
 	}
 }
 
+// Delete implements the resource Delete operation.
+//
+// This method deletes the helmfile release by executing helmfile destroy.
+// It removes all Helm releases defined in the helmfile configuration from
+// the Kubernetes cluster.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: Delete request containing the current state
+//   - resp: Delete response to populate with diagnostics
+//
 //nolint:gocritic // Interface implementation
 func (r *HelmfileReleaseResource) Delete(
 	ctx context.Context,
 	req resource.DeleteRequest,
 	resp *resource.DeleteResponse,
 ) {
-	tflog.Debug(ctx, "################### Deleting Helmfile release resource")
+	tflog.Debug(ctx, "=HLMFL=> Deleting Helmfile release resource")
 	// Implementation of Delete operation
 	var data HelmfileReleaseModel
 	diags := req.State.Get(ctx, &data)
@@ -404,6 +539,19 @@ func (r *HelmfileReleaseResource) Delete(
 	resp.Diagnostics.Append(destroyHelmfileRelease(ctx, executor, &data)...)
 }
 
+// destroyHelmfileRelease executes the helmfile destroy operation.
+//
+// This function converts the resource model to helmfile options and destroy options,
+// then executes the destroy operation using the helmfile executor. It handles errors
+// and logs the operation results.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - executor: Helmfile executor to use for the destroy operation
+//   - data: Resource model containing configuration
+//
+// Returns:
+//   - diag.Diagnostics: Diagnostics if the operation encounters issues
 func destroyHelmfileRelease(
 	ctx context.Context,
 	executor helmfile.HelmfileExecutor,
@@ -436,6 +584,17 @@ func destroyHelmfileRelease(
 	return diag.Diagnostics{}
 }
 
+// NewDestroyOptionsFromModel creates helmfile DestroyOptions from a Terraform model.
+//
+// This function converts the destroy configuration from the resource model into
+// the helmfile DestroyOptions structure. It extracts cascade behavior, concurrency,
+// wait settings, and timeout values.
+//
+// Parameters:
+//   - model: Resource model from Terraform configuration
+//
+// Returns:
+//   - *config.DestroyOptions: Converted options for helmfile destroy operation
 func NewDestroyOptionsFromModel(
 	model *HelmfileReleaseModel,
 ) *config.DestroyOptions {
@@ -457,7 +616,7 @@ func (r *HelmfileReleaseResource) ModifyPlan(
 	req resource.ModifyPlanRequest,
 	resp *resource.ModifyPlanResponse,
 ) {
-	tflog.Debug(ctx, "################### Modifying plan for Helmfile release resource")
+	tflog.Debug(ctx, "=HLMFL=> Modifying plan for Helmfile release resource")
 	if req.Plan.Raw.IsNull() {
 		// Resource is being destroyed, no need to modify the plan
 		return
@@ -485,6 +644,24 @@ func (r *HelmfileReleaseResource) ModifyPlan(
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
 }
 
+// updateReleaseState updates the Terraform state for a helmfile release by calculating
+// the build digest (SHA256 checksum) and retrieving the list of managed releases.
+//
+// This function performs two main operations:
+//  1. Calculates a SHA256 checksum of the helmfile build output to detect changes
+//  2. Retrieves the current list of releases managed by helmfile
+//
+// The calculated digest and release list are stored in the provided HelmfileReleaseModel
+// data structure, which is then persisted to Terraform state.
+//
+// Parameters:
+//   - ctx: Context for logging and cancellation
+//   - executor: HelmfileExecutor instance for running helmfile commands
+//   - options: Options containing helmfile configuration and paths
+//   - data: Pointer to the resource model that will be updated with state information
+//
+// Returns diagnostics containing any errors encountered during digest calculation
+// or release list retrieval.
 func updateReleaseState(
 	ctx context.Context,
 	executor helmfile.HelmfileExecutor,
@@ -529,7 +706,25 @@ func updateReleaseState(
 	return diags
 }
 
-// releaseDigest runs `helmfile build` and returns the sha256 checksum of its output.
+// releaseDigest calculates a SHA256 checksum of the helmfile build output to detect
+// configuration changes.
+//
+// This function runs `helmfile build` to generate the complete helmfile configuration,
+// filters out non-deterministic log lines (timestamps, version info), and calculates
+// a SHA256 hash of the resulting output. This digest is used by Terraform to detect
+// when the helmfile configuration has changed and requires an update.
+//
+// The digest is stored in the resource's Sha256Checksum attribute and is used by the
+// BuildDigestModifier plan modifier to determine if an update is needed.
+//
+// Parameters:
+//   - ctx: Context for logging and cancellation
+//   - executor: HelmfileExecutor instance for running helmfile build
+//   - options: Options containing helmfile configuration and paths
+//
+// Returns:
+//   - string: Hexadecimal SHA256 checksum of the filtered build output
+//   - diag.Diagnostics: Any errors encountered during build or processing
 func releaseDigest(
 	ctx context.Context,
 	executor helmfile.HelmfileExecutor,
@@ -572,7 +767,32 @@ func releaseDigest(
 	return fmt.Sprintf("%x", hash.Sum(nil)), diags
 }
 
-// jsonToReleasesListValue converts the JSON output of `helmfile list -o json` into a ListValue of ReleasesListValue.
+// jsonToReleasesListValue parses JSON output from `helmfile list` and converts it into
+// a Terraform ListValue containing release information.
+//
+// This function unmarshals the JSON output from `helmfile list -o json` into a slice of
+// app.HelmRelease structures, then converts each release into a ReleasesListValue with
+// typed Terraform attributes. The resulting list is stored in the resource's releases_list
+// computed attribute.
+//
+// Each release contains:
+//   - name: Release name
+//   - namespace: Kubernetes namespace
+//   - chart: Helm chart reference
+//   - version: Chart version
+//   - enabled: Whether the release is enabled in helmfile
+//   - installed: Whether the release is currently installed
+//   - labels: Map of labels parsed from the comma-separated labels string
+//
+// Labels are parsed from the format "key1:value1,key2:value2" into a map.
+//
+// Parameters:
+//   - ctx: Context for type operations
+//   - output: JSON string output from `helmfile list -o json`
+//
+// Returns:
+//   - *basetypes.ListValue: List of ReleasesListValue objects, or nil on error
+//   - diag.Diagnostics: Any errors encountered during parsing or conversion
 func jsonToReleasesListValue(
 	ctx context.Context,
 	output string,

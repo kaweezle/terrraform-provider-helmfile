@@ -26,6 +26,7 @@
     "goreleaser",
     "gotmpl",
     "helmfiles",
+    "HLMFL",
     "kaweezle",
     "Kubeconfig",
     "kustomizations",
@@ -40,6 +41,7 @@
     "tflog",
     "tfplugindocs",
     "tfsdk",
+    "unmarshals",
     "Warnf"
   ],
   "ignoreWords": [],
