@@ -45,7 +45,7 @@ resource "helmfile_release" "backend_services" {
   name         = "backend"
   file_or_path = "./helmfile.yaml"
 
-  selector = [
+  selectors = [
     "tier=backend",
     "app=api"
   ]
@@ -61,13 +61,13 @@ resource "helmfile_release" "templated" {
   name         = "my-app"
   file_or_path = "./helmfile.yaml"
 
-  state_values_set = [
-    "cluster=us-east-1",
-    "env=production",
-    "replicas=3"
-  ]
+  state_values_set = {
+    cluster  = "us-east-1"
+    env      = "production"
+    replicas = "3"
+  }
 
-  state_values_file = ["./cluster-config.yaml"]
+  state_values_files = ["./cluster-config.yaml"]
 }
 ```
 
@@ -81,6 +81,38 @@ resource "helmfile_release" "remote_cluster" {
   kubeconfig   = "/path/to/remote-cluster.kubeconfig"
   kube_context = "remote-cluster-context"
   namespace    = "applications"
+}
+```
+
+### With Provider Overrides
+
+```terraform
+resource "helmfile_release" "custom_binary" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  overrides = {
+    helm_binary_path       = "/custom/path/to/helm"
+    skip_deps              = true
+    skip_refresh           = true
+    helm_oci_plain_http    = false
+  }
+}
+```
+
+### With Destroy Options
+
+```terraform
+resource "helmfile_release" "with_destroy_opts" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  destroy = {
+    wait       = true
+    timeout    = 300
+    cascade    = "background"
+    concurrency = 2
+  }
 }
 ```
 
@@ -142,11 +174,39 @@ When deleting a `helmfile_release`, the provider:
 
 ### Selectors and Dependencies
 
-- Use `selector` to target specific releases within a helmfile
+- Use `selectors` to target specific releases within a helmfile (list of label selectors)
 - Enable `include_needs` to automatically include dependent releases
 - Use `include_transitive_needs` for deep dependency resolution
 - Set `skip_needs` to avoid automatic dependency inclusion
+- Set `enforce_needs_are_installed` to ensure selected releases' needs are installed
 
 ### State Values
 
-State values (`state_values_set`, `state_values_file`, `state_values_set_string`) are used for templating within the helmfile itself, allowing you to parameterize your helmfile configuration based on Terraform variables.
+State values (`state_values_set`, `state_values_files`, `state_values_set_string`) are used for templating within the helmfile itself, allowing you to parameterize your helmfile configuration based on Terraform variables.
+
+- `state_values_set` - A map of string key-value pairs for templating
+- `state_values_files` - A list of YAML file paths containing values
+- `state_values_set_string` - A list of string values in KEY=VALUE format
+
+### Provider Overrides
+
+The `overrides` block allows you to override provider-level settings for a specific resource. This is useful when you need different settings for different releases. Supported overrides include:
+
+- `helm_binary_path` - Override the Helm binary path
+- `kustomize_binary_path` - Override the Kustomize binary path
+- `skip_deps` - Override dependency management
+- `skip_refresh` - Override repository refresh behavior
+- `disable_force_update` - Override force update behavior
+- `enforce_plugin_verification` - Override plugin verification
+- `helm_oci_plain_http` - Override OCI registry HTTP settings
+- `strip_args_values_on_exit_error` - Override error message sanitization
+
+### Destroy Configuration
+
+The `destroy` block allows you to configure how releases are deleted:
+
+- `cascade` - Control cascading deletion behavior (background, foreground, or orphan)
+- `concurrency` - Maximum number of concurrent deletions
+- `wait` - Wait for resource deletion to complete
+- `timeout` - Timeout for deletion operations (in seconds)
+- `skip_charts` - Skip chart preparation during destroy

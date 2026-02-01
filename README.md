@@ -47,6 +47,20 @@ terraform {
 provider "helmfile" {
   helm_binary_path = "/usr/local/bin/helm"
   perform_init     = true
+  environment      = "production"
+  log_level        = "info"
+
+  env_vars = {
+    AWS_REGION = "us-west-2"
+  }
+
+  additional_plugins = [
+    {
+      name    = "diff"
+      version = "3.9.4"
+      repo    = "https://github.com/databus23/helm-diff"
+    }
+  ]
 }
 ```
 
@@ -90,7 +104,7 @@ resource "helmfile_release" "app_stack" {
   namespace    = "applications"
   kube_context = "staging-cluster"
 
-  selector = [
+  selectors = [
     "app=myapp",
     "tier=backend"
   ]
@@ -117,16 +131,23 @@ resource "helmfile_release" "app_stack" {
 
 The provider supports the following configuration options:
 
-| Name                    | Type         | Description                                | Default     |
-| ----------------------- | ------------ | ------------------------------------------ | ----------- |
-| `perform_init`          | bool         | Run 'helmfile init' before operations      | `false`     |
-| `helm_binary_path`      | string       | Path to helm binary                        | System PATH |
-| `kustomize_binary_path` | string       | Path to kustomize binary                   | System PATH |
-| `default_args`          | list(string) | Default args for all helmfile commands     | `[]`        |
-| `skip_refresh`          | bool         | Skip 'helmfile repos' before operations    | `false`     |
-| `skip_deps`             | bool         | Skip helm repo update and dependency build | `false`     |
-| `disable_force_update`  | bool         | Don't force helm repos to update           | `false`     |
-| `additional_plugins`    | list(string) | Additional helm plugins to install         | `[]`        |
+| Name                              | Type         | Description                                            | Default     |
+| --------------------------------- | ------------ | ------------------------------------------------------ | ----------- |
+| `perform_init`                    | bool         | Run 'helmfile init' before operations                  | `false`     |
+| `helm_binary_path`                | string       | Path to helm binary                                    | System PATH |
+| `kustomize_binary_path`           | string       | Path to kustomize binary                               | System PATH |
+| `default_args`                    | list(string) | Default args for all helmfile commands                 | `[]`        |
+| `skip_refresh`                    | bool         | Skip 'helmfile repos' before operations                | `false`     |
+| `skip_deps`                       | bool         | Skip helm repo update and dependency build             | `false`     |
+| `disable_force_update`            | bool         | Don't force helm repos to update                       | `false`     |
+| `additional_plugins`              | list(object) | Additional helm plugins to install (name/version/repo) | `[]`        |
+| `kubeconfig`                      | string       | Path to kubeconfig file                                | Default     |
+| `environment`                     | string       | Default helmfile environment name                      | `default`   |
+| `env_vars`                        | map(string)  | Environment variables for helmfile operations          | `{}`        |
+| `log_level`                       | string       | Log level (trace, debug, info, warn, error)            | `info`      |
+| `strip_args_values_on_exit_error` | bool         | Strip secret values from error messages                | `true`      |
+| `enforce_plugin_verification`     | bool         | Enforce helm plugin verification                       | `false`     |
+| `helm_oci_plain_http`             | bool         | Allow plain HTTP for OCI registries                    | `false`     |
 
 ## Resource Configuration
 
@@ -141,11 +162,15 @@ include:
   - `environment` - Helmfile environment
   - `namespace` - Kubernetes namespace
   - `kube_context` - kubectl context
-  - `selector` - Label selectors
+  - `selectors` - Label selectors (list)
   - `values` - Value files
   - `set` - Set values
+  - `state_values_set` - State values for helmfile templating (map)
+  - `state_values_files` - State value files (list)
   - `wait`, `wait_for_jobs` - Wait configurations
   - `suppress_secrets` - Hide secrets in diff output
+  - `overrides` - Override provider settings for this resource
+  - `destroy` - Destroy configuration (cascade, timeout, etc.)
   - And many more (see [full documentation](docs/resources/release.md))
 
 ## Examples
@@ -157,6 +182,54 @@ Check out the [examples](examples/) directory for more usage patterns:
 - [Provider Setup](examples/provider/) - Provider configuration examples
 - [Resource Examples](examples/resources/helmfile_release/) - Various resource
   configurations
+
+### Using State Values for Templating
+
+```hcl
+resource "helmfile_release" "templated" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  state_values_set = {
+    cluster_name = "prod-cluster"
+    region       = "us-east-1"
+    replicas     = "5"
+  }
+
+  state_values_files = ["./common-values.yaml"]
+}
+```
+
+### Using Provider Overrides
+
+```hcl
+resource "helmfile_release" "custom_binary" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  overrides = {
+    helm_binary_path = "/custom/path/to/helm"
+    skip_deps        = true
+    skip_refresh     = true
+  }
+}
+```
+
+### Configuring Destroy Behavior
+
+```hcl
+resource "helmfile_release" "with_destroy_config" {
+  name         = "my-app"
+  file_or_path = "./helmfile.yaml"
+
+  destroy = {
+    cascade     = "foreground"
+    wait        = true
+    timeout     = 600
+    concurrency = 1
+  }
+}
+```
 
 ## Development
 

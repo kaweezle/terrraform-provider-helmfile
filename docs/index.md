@@ -113,7 +113,10 @@ Required:
 
 ### Plugin Management
 
-- `additional_plugins` - List of additional Helm plugins to install. Each entry should be a URL or plugin identifier.
+- `additional_plugins` - List of additional Helm plugins to install. Each entry should include:
+  - `name` - Name of the Helm plugin
+  - `version` - Version of the plugin
+  - `repo` - URL of the plugin repository
 - `enforce_plugin_verification` - When set to `true`, enforces verification of Helm plugins when installing missing ones.
 
 ### Security
@@ -124,6 +127,12 @@ Required:
 ### Global Arguments
 
 - `default_args` - List of arguments to pass to every Helmfile command. These are applied globally across all operations.
+
+### Environment Configuration
+
+- `environment` - Specify the environment name. Defaults to 'default'. This is used to select which environment configuration to use from your helmfile.
+- `env_vars` - Map of environment variables to set for Helmfile operations. These variables are available during helmfile template evaluation.
+- `log_level` - Set log level for Helmfile operations. Valid values are: trace, debug, info, warn, error. Default is info.
 
 ## Authentication
 
