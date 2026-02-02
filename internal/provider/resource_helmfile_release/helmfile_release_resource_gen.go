@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	"github.com/kaweezle/terraform-provider-helmfile/internal/provider/utils"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -161,9 +160,6 @@ func HelmfileReleaseResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "Use a particular kubeconfig file.",
 				MarkdownDescription: "Use a particular kubeconfig file.",
-				Validators: []validator.String{
-					&utils.ExistingFileOrDirectoryValidator{AllowDirectory: false},
-				},
 			},
 			"log_level": schema.StringAttribute{
 				Optional:            true,
