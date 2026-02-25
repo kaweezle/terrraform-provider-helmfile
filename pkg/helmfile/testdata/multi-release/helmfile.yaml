@@ -1,3 +1,6 @@
+# Copyright Antoine Martin 2026
+# SPDX-License-Identifier: MIT
+
 # cSpell: words notworking
 #
 # This helmfile is used for integration tests of HelmfileLibraryExecutor.Apply.
