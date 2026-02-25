@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright Antoine Martin 2026
 
 package main
 

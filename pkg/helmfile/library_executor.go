@@ -338,9 +338,9 @@ func (p *HelmfileLibraryExecutor) Execute(
 	// copy the output in a separate goroutine so printing can't block indefinitely
 	go func() {
 		var buf bytes.Buffer
-		_, err = io.Copy(&buf, r)
-		if err != nil {
-			logger.Warnf("error copying stdout: %v", err)
+		_, copyErr := io.Copy(&buf, r)
+		if copyErr != nil {
+			logger.Warnf("error copying stdout: %v", copyErr)
 		}
 		outC <- buf.String()
 	}()

@@ -1,0 +1,36 @@
+# Copyright Antoine Martin 2026
+# SPDX-License-Identifier: MIT
+
+# cSpell: words notworking
+#
+# This helmfile is used for integration tests of HelmfileLibraryExecutor.Apply.
+#
+# It defines two releases:
+#   - working:    a simple ConfigMap that applies successfully
+#   - notworking: a kubernetes.io/tls Secret with invalid key names (crt/key
+#                 instead of tls.crt/tls.key) that Kubernetes rejects.
+#
+# notworking depends on working (via needs:), so working is always applied
+# first. The goal is to verify that Apply surfaces errors from failed releases
+# while previously-applied releases remain in the cluster.
+
+releases:
+  - name: working
+    namespace: test
+    createNamespace: true
+    chart: ./working
+  - name: notworking
+    namespace: test
+    createNamespace: true
+    chart: ./notworking
+    needs:
+      - test/working
+
+helmDefaults:
+  wait: true
+  timeout: 600
+  recreatePods: false
+  force: false
+  atomic: true
+  cleanupOnFail: false
+  historyMax: 10

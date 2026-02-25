@@ -1,0 +1,12 @@
+# Copyright Antoine Martin 2026
+# SPDX-License-Identifier: MIT
+
+# cSpell: words configmap
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: working-configmap
+  namespace: test
+data:
+  status: "working"
