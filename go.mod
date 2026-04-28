@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/helmfile/helmfile v1.3.1
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	helm.sh/helm/v3 v3.20.0
 	helm.sh/helm/v4 v4.1.1
 )
